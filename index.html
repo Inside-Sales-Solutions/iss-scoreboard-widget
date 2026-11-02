@@ -20,18 +20,22 @@
         <div class="fresh"><span id="asof"></span> <button type="button" class="linkbtn" id="refresh" hidden>Refresh</button></div>
       </div>
     </div>
-    <div class="controls">
-      <a class="helpbtn" id="help-link" href="help.html" title="How to use the scoreboard"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M9.1 9a3 3 0 0 1 5.8 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></svg>Help</a>
-      <a class="adminbtn" id="admin-link" hidden>Scoreboard Admin</a>
+    <div class="hdr-right">
+     <div class="tools">
       <label class="picker" id="picker" hidden>View rep
         <select id="rep-pick"><option value="">Choose a rep…</option></select>
       </label>
+      <a class="adminbtn" id="admin-link" hidden>Scoreboard Admin</a>
+      <a class="helpbtn" id="help-link" href="help.html" title="How to use the scoreboard"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M9.1 9a3 3 0 0 1 5.8 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></svg>Help</a>
+     </div>
+     <div class="controls">
       <div class="seg" role="group" aria-label="Period">
         <button type="button" id="p-today" aria-pressed="false">Today</button>
         <button type="button" id="p-week" aria-pressed="false">This week</button>
         <button type="button" id="p-month" aria-pressed="true">This month</button>
         <button type="button" id="p-lastmonth" aria-pressed="false">Last month</button>
       </div>
+     </div>
     </div>
   </div>
 </header>
