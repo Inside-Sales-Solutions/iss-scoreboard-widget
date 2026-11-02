@@ -65,9 +65,9 @@ function start() {
   mount();
   $('refresh').onclick = () => show(true);
   if (typeof ZOHO === 'undefined' || !ZOHO.embeddedApp) { showError(new Error('The Zoho SDK did not load. Open this page from the Scoreboard tab in Zoho CRM.')); return; }
+  // JS SDK 1.5: init() resolves once CRM has handed the widget its context.
   let started = false;
-  ZOHO.embeddedApp.on('PageLoad', () => { started = true; show(false); });
-  ZOHO.embeddedApp.init();
+  ZOHO.embeddedApp.init().then(() => { started = true; show(false); });
   setTimeout(() => { if (!started) showError(new Error('This page only works inside Zoho CRM. Open it from the Scoreboard tab.')); }, 10000);
 }
 
