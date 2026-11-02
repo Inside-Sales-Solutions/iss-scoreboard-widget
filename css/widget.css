@@ -15,11 +15,11 @@ body{margin:0}
 .picker{display:flex;align-items:center;gap:8px;font:600 13px var(--f-body);color:var(--muted)}
 .picker select{font:600 13px var(--f-body);color:var(--ink);background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:8px 10px;box-shadow:var(--shadow);max-width:260px}
 .lb tr.picked td{background:var(--accent-soft)}
-/* The open rep: its row and scorecard are shaded light grey, with a grey edge, so they stand out from the rest. */
-.lb tbody tr.row[aria-expanded="true"] td{background:color-mix(in srgb,var(--muted) 16%,var(--panel))}
+/* The open rep: a very light blue row, a light grey scorecard and a white promotion block, so they stand out from the rest. */
+.lb tbody tr.row[aria-expanded="true"] td{background:color-mix(in srgb,var(--accent) 7%,var(--panel))}
 .lb tbody tr.row[aria-expanded="true"] td:first-child{box-shadow:inset 4px 0 0 color-mix(in srgb,var(--muted) 55%,var(--panel))}
 tr.detail td{background:color-mix(in srgb,var(--muted) 9%,var(--panel));box-shadow:inset 4px 0 0 color-mix(in srgb,var(--muted) 55%,var(--panel))}
-.promo{background:color-mix(in srgb,var(--muted) 16%,var(--panel));border-color:color-mix(in srgb,var(--muted) 35%,var(--line))}
+.promo{background:var(--panel);border-color:color-mix(in srgb,var(--muted) 35%,var(--line))}
 /* Leaderboard sort headers and filter row. */
 .lb tr.sorts th{cursor:pointer;user-select:none}
 .lb tr.sorts th:hover{color:var(--ink)}
