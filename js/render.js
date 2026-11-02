@@ -311,7 +311,7 @@ function renderDigest() {
     for (const k of ['scheduled', 'attended', 'schedPoints']) {
       const st = grp.cards[k]; const c = card(st.label, `Division total: ${isPts(k) ? fmt1(st.total) : fmt(st.total)}`);
       if (!st.top.length) c.append(el('div', 'empty', 'None logged yesterday.'));
-      else c.append(table(st.top.map((x, i) => { const tr = el('tr'); tr.append(el('td', 'r', String(i + 1)), who(x.name, x.level), el('td', 'r', isPts(k) ? fmt1(x.v) : fmt(x.v))); return tr; })));
+      else c.append(table(st.top.map((x, i) => { const tr = el('tr'); tr.append(el('td', 'rk', String(i + 1)), who(x.name, x.level), el('td', 'r', isPts(k) ? fmt1(x.v) : fmt(x.v))); return tr; })));
       g1.append(c);
     }
     box.append(g1);
