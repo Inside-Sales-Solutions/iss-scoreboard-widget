@@ -3,9 +3,10 @@
 
 import { KPIS, SFX, isPts, computeRep, levelTitle, divOf } from './scoring.js';
 import { buildDigest } from './digest.js';
+import { GROUPS, groupOf } from './settings.js';
 
 // onlyTeam: the viewer's own team when they're a rep (they only see their division), else null.
-let DATA = null, C = null, W = null, active = [], canPick = false, onlyTeam = null, lastAll = [];
+let DATA = null, C = null, active = [], canPick = false, onlyTeam = null, lastAll = [];
 const state = { period: 'month', div: 'BDR', open: null, raceAll: false, periodChosen: false, picked: null, compFilter: 'active' };
 const view = { v: location.hash === '#competitions' ? 'comps' : location.hash === '#digest' ? 'digest' : 'board' };
 
@@ -28,7 +29,7 @@ function showTip(e, text) {
 const hideTip = () => { $('tip').hidden = true; };
 
 export function setData(d) {
-  DATA = d; C = d.config; W = C.weights;
+  DATA = d; C = d.config;
   active = DATA.reps.filter(r => r.calls_mtd > 0 || r.sch_mtd > 0 || r.att_mtd > 0 || r.calls_lm > 0 || r.sch_lm > 0 || r.att_lm > 0);
   // Before the month's first working day there is nothing to score yet, so open on last month.
   if (!state.periodChosen) state.period = C.workingDays.monthElapsed === 0 ? 'lastmonth' : 'month';
@@ -38,12 +39,20 @@ export function setData(d) {
 function notices(P) {
   const box = $('notice'); box.textContent = '';
   const add = (pill, text) => { const n = el('div', 'notice'); if (pill) n.append(el('span', 'pill', pill)); n.append(el('span', null, text)); box.append(n); };
-  if (C.placeholderTargets) add('Draft', "Targets follow each rep's Payband Milestone: attended appointments a month = the level number (NH 8, Hit 8 and BDR 12), and scheduled is a third higher to allow for the usual 25% drop-off. Calls are the same at every level.");
+  for (const t of DATA.notices || []) add(null, t);
+  // Draft until an admin saves the group's Board record ("Targets Confirmed").
+  const boards = DATA.settings?.boards || {};
+  const groups = onlyTeam ? [groupOf(onlyTeam)].filter(Boolean) : Object.keys(GROUPS);
+  const draft = groups.filter(g => !boards[g]?.confirmed);
+  if (draft.length) add('Draft', `Targets for ${listText(draft)} are placeholders until an admin saves them.`);
   const wd = C.workingDays, cal = DATA.calendar;
   if (P === 'month' && wd.monthElapsed === 0) add('No data yet', `${C.monthLabel} hasn't had a working day yet. Last month shows ${C.lastMonthLabel}'s final standings.`);
   if (P === 'today' && cal && !isWeekday(cal.today)) add('Weekend', "Today isn't a working day, so today's numbers are scored against one day's targets and will mostly be zero.");
   box.className = box.childElementCount ? 'notices' : '';
 }
+const listText = a => a.length < 2 ? a.join('') : `${a.slice(0, -1).join(', ')} and ${a[a.length - 1]}`;
+const DIV_GROUP = { P4P: 'SDR', BDR: 'BDR', Training: 'Trainee' };
+const weekdayHolidays = () => (DATA.holidays || []).filter(h => isWeekday(h.date));
 const isWeekday = s => { const d = new Date(s + 'T12:00:00Z').getUTCDay(); return d >= 1 && d <= 5; };
 
 function render() {
@@ -197,16 +206,23 @@ function renderDivisions(all) {
   }
 }
 
+// Each group's Board has its own weights; show the selected division's, or every group's on All.
+function weightLine(group) {
+  const b = DATA.settings?.boards?.[group], w = b?.weights ?? C.weights, cap = b?.cap ?? C.cap;
+  return `capped at ${Math.round(cap * 100)}%, weighted ${KPIS.filter(k => w[k.key] > 0).map(k => `${k.label} ${w[k.key]}`).join(', ')}`;
+}
 function renderHow() {
   const how = $('how'); how.textContent = '';
+  const g = onlyTeam ? groupOf(onlyTeam) : DIV_GROUP[state.div];
+  const weights = g ? `(${weightLine(g)})` : `(${Object.keys(GROUPS).map(x => `${x}: ${weightLine(x)}`).join('; ')})`;
   [
-    `Activity Score: for each KPI, actual ÷ target (capped at ${C.cap * 100}%), weighted (${KPIS.filter(k => W[k.key] > 0).map(k => `${k.label} ${W[k.key]}`).join(', ')}). KPIs with a weight of 0 are shown but not scored. 100 = on pace. Targets scale with working days so far.`,
+    `Activity Score: for each KPI, actual ÷ target ${weights}. KPIs with a weight of 0 are shown but not scored. 100 = on pace. Targets scale with working days so far.`,
     `Attended points target = promotion level (e.g. Avg 24 = 24 points a month). On the leaderboard, This month shows that full monthly number all month; the Activity Score still measures it against pace. Levels come from Zoho and never go down; promotion uses the average of the last 3 completed months. Promotion points count Attended, Reschedule-ABD and Cancelled-ISS meetings by meeting date. New hires (NH) have a points target of 8; their next level is Sales Development Representative at 8. Plain BDR level has no points target, so points are left out of their score. Scheduled points = the points value of every meeting booked, on the day it was booked, except those now Cancelled; its target is the same as the Attended points target unless a manager sets one.`,
     'Attended appointments = Attended, Reschedule-ABD or Cancelled-ISS, on the meeting date. Scheduled appointments = every meeting booked, on the day it was created, except those now Cancelled. First encounters and Senior contacts follow the same rule.',
     'Objective Score (in each scorecard) = share of working days this month the rep hit the daily calls and scheduled targets.',
     "Senior contacts = meetings booked (on the day booked) with a Director, Vice President or Chief-level person, from the appointment's Seniority Level. Referrals = calls logged as Suggested Colleague (conversation or admin); Booked Colleague is not a referral.",
     "Last month shows the previous calendar month's final standings against full monthly targets, recalculated from Zoho each time the board loads, so late status changes (e.g. a meeting marked Attended after month end) still count. It uses each rep's current level.",
-    'Working days are Monday to Friday. Days run on Eastern time.',
+    weekdayHolidays().length ? `Working days are Monday to Friday, minus holidays (${weekdayHolidays().map(h => h.name).join(', ')}). Days run on Eastern time.` : 'Working days are Monday to Friday. Days run on Eastern time.',
     'Source: Zoho CRM, read live every time the board opens. Use Refresh to reload.',
   ].forEach(t => how.append(el('li', null, t)));
 }
@@ -378,7 +394,7 @@ function scorecard(x, P) {
     const v = el('div', 'v', isPts(k.key) ? fmt1(k.actual) : fmt(k.actual));
     if (k.target !== null && k.target !== undefined) v.append(el('span', null, ' / ' + ((isPts(k.key) || k.target < 10) ? fmt1(k.target) : fmt(k.target))));
     c.append(v);
-    if (k.target) { const a = k.actual / k.target; c.append(bar(a / C.cap, 1 / C.cap)); const [cls, txt] = status(a); c.append(el('div', 'st ' + cls, `${txt} · ${fmt(a * 100)}%`)); }
+    if (k.target) { const a = k.actual / k.target, cap = x.r.cap ?? C.cap; c.append(bar(a / cap, 1 / cap)); const [cls, txt] = status(a); c.append(el('div', 'st ' + cls, `${txt} · ${fmt(a * 100)}%`)); }
     else c.append(el('div', 'st', k.noTarget ? 'No target set yet' : (k.target === 0 ? 'No working days yet' : 'No points target for this level')));
     box.append(c);
   }

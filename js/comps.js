@@ -1,7 +1,8 @@
 // Competition standings over each competition's own dates, in the shape Aidan's page renders.
 
 import { monthEndOf, monthStartOf, window, workingDaysBetween } from './dates.js';
-import { KPIS, scoreKpis, divOf, repTargets } from './scoring.js';
+import { KPIS, scoreKpis, divOf } from './scoring.js';
+import { resolveTargets } from './settings.js';
 
 const DIVS = { BDR: 'BDR Division', P4P: 'P4P Division', Training: 'Training' };
 
@@ -46,17 +47,19 @@ export function buildComps(defs, fetchWindow, cal, cfg, reps) {
 
 async function buildComp(def, fetchWindow, cal, cfg, reps) {
   const status = statusOf(def, cal.today);
-  const base = { ...def, status, standings: [], hasData: false, days: 0, weights: def.metric === 'score' ? cfg.weights : {}, cap: cfg.cap };
+  // A contest record carries its own weights and cap; fall back to the board config.
+  const weights = def.setting?.weights ?? cfg.weights, cap = def.setting?.cap ?? cfg.cap;
+  const base = { ...def, status, standings: [], hasData: false, days: 0, weights: def.metric === 'score' ? weights : {}, cap };
   if (status === 'upcoming') return base;
   const end = def.end < cal.today ? def.end : cal.today;
-  const days = workingDaysBetween(def.start, end).length;
+  const days = workingDaysBetween(def.start, end, cal.holidays).length;
   const m = await fetchWindow(window(def.start, end, cal.tz));
   // Targets use the working days of the competition's own month, as Aidan's page did.
   const ms = monthStartOf(def.start);
-  const monthTotal = workingDaysBetween(ms, monthEndOf(ms)).length;
-  const c = { ...cfg, workingDays: { ...cfg.workingDays, monthTotal } };
+  const monthTotal = workingDaysBetween(ms, monthEndOf(ms), cal.holidays).length;
+  const c = { ...cfg, weights, cap, workingDays: { ...cfg.workingDays, monthTotal } };
   const member = r => ({ name: r.name, level: r.level, div: divOf(r.team), team: null,
-    ...repValue(def, { ...r, targets: repTargets(r.level, c, monthTotal) }, m[r.id], days, c) });
+    ...repValue(def, { ...r, targets: resolveTargets(r, def.setting || null, c, monthTotal), weights, cap }, m[r.id], days, c) });
   let standings;
   if (def.format === 'teams' || def.format === 'division') {
     standings = participants(def, reps).map(t => {

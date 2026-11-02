@@ -3,7 +3,7 @@
 
 import { and, between, inList, makeRunner } from './coql.js';
 import { buildCalendar, dateIn, dayEnd, dayStart, window } from './dates.js';
-import { repTargets } from './scoring.js';
+import { boardsByGroup, contestDefs, GROUPS, groupOf, isRealDate, parseHolidays, parseRecord, pickLevel, resolveTargets } from './settings.js';
 import { buildDigest } from './digest.js';
 import { buildComps } from './comps.js';
 
@@ -89,10 +89,15 @@ export function scheduledRawQuery(cal) {
   return `select Created_By, Created_Time, Points, First_Encounter, Seniority_Level from ISS_Appointments where ${and(SCHEDULED, between('Created_Time', [dayStart(from, cal.tz), dayEnd(cal.today, cal.tz)]))} order by id asc`;
 }
 
-export function blankRep(u, cfg, monthTotal) {
-  const level = Array.isArray(u.Payband_Milestone) ? u.Payband_Milestone.join(', ') : (u.Payband_Milestone || '');
-  const r = { id: String(u.id), name: u.full_name || `${u.first_name || ''} ${u.last_name || ''}`.trim(), team: u.Team || '', level,
-    targets: repTargets(level, cfg, monthTotal), override: false, sch_days: {}, call_days: {}, days_calls_hit: 0, days_sched_hit: 0 };
+// `boards` are the Board records by group. A rep's targets, weights and cap come from their group's
+// Board, or the config defaults when it's missing.
+export function blankRep(u, cfg, monthTotal, boards = {}) {
+  // Values like "N/A" don't rank; keep them for display (they match no level row).
+  const level = pickLevel(u.Payband_Milestone) || (Array.isArray(u.Payband_Milestone) ? u.Payband_Milestone.join(', ') : (u.Payband_Milestone || ''));
+  const id = String(u.id), group = groupOf(u.Team), board = boards[group] || null;
+  const r = { id, name: u.full_name || `${u.first_name || ''} ${u.last_name || ''}`.trim(), team: u.Team || '', level, group,
+    targets: resolveTargets({ id, level }, board, cfg, monthTotal), weights: board?.weights ?? cfg.weights, cap: board?.cap ?? cfg.cap,
+    confirmed: board?.confirmed ?? false, override: !!board?.overrides?.[id], sch_days: {}, call_days: {}, days_calls_hit: 0, days_sched_hit: 0 };
   for (const c of COLS) for (const s of SUFFIXES) r[`${c}_${s}`] = 0;
   return r;
 }
@@ -128,14 +133,44 @@ async function callsOnDay(run, d, cal, store) {
   return v;
 }
 
-export async function loadData({ coql, getUsers, now = new Date(), cfg, store = null }) {
+const settle = p => Promise.resolve().then(p).then(value => ({ ok: true, value }), error => ({ ok: false, error }));
+
+// Board and Contest records, holidays and their notices. Missing loaders count as "nothing saved".
+export function readSettings(settingsRes, holidaysRes) {
+  const notices = [];
+  const hol = holidaysRes.ok ? parseHolidays(holidaysRes.value) : { set: new Set(), list: [], error: true };
+  if (hol.error) notices.push("Holidays couldn't be loaded, so working days are Monday to Friday.");
+  if (!settingsRes.ok) {
+    console.warn('[ISS Scoreboard] settings load failed', settingsRes.error);
+    notices.push("Scoreboard settings couldn't be loaded, so default targets are in use.");
+    return { boards: {}, contests: [], hol, notices };
+  }
+  const all = (settingsRes.value || []).map(parseRecord);
+  const { boards, notices: dup } = boardsByGroup(all);
+  notices.push(...dup);
+  for (const g of Object.keys(GROUPS)) if (!boards[g]) notices.push(`Using default targets: the ${g} Board record couldn't be loaded.`);
+  // A contest made in the CRM without proper dates would break scoring for everyone, so skip it.
+  const contests = all.filter(s => s.type === 'contest').filter(s => {
+    const ok = isRealDate(s.start) && isRealDate(s.end) && s.end >= s.start;
+    if (!ok) notices.push(`The contest "${s.name}" has no valid dates, so it is not shown.`);
+    return ok;
+  });
+  return { boards, contests, hol, notices };
+}
+
+export async function loadData({ coql, getUsers, listSettings, getHolidays, now = new Date(), cfg, store = null }) {
   const started = Date.now();
-  const cal = buildCalendar(now, cfg.tz);
-  const C = { ...cfg, workingDays: cal.workingDays, monthLabel: cal.labels.month, weekLabel: cal.labels.week, lastMonthLabel: cal.labels.lastMonth };
   const runner = makeRunner(coql);
-  const allUsers = getUsers ? await getUsers() : await runner.all(usersQuery(cfg));
+  const [allUsers, settingsRes, holidaysRes] = await Promise.all([
+    getUsers ? getUsers() : runner.all(usersQuery(cfg)),
+    settle(listSettings || (() => [])),
+    settle(getHolidays || (() => null)),
+  ]);
+  const { boards, contests, hol, notices } = readSettings(settingsRes, holidaysRes);
+  const cal = buildCalendar(now, cfg.tz, hol.set);
+  const C = { ...cfg, ...cfg.defaults, workingDays: cal.workingDays, monthLabel: cal.labels.month, weekLabel: cal.labels.week, lastMonthLabel: cal.labels.lastMonth };
   const users = allUsers.filter(u => isBoardRep(u, cfg));
-  const byId = Object.fromEntries(users.map(u => [String(u.id), blankRep(u, C, cal.workingDays.monthTotal)]));
+  const byId = Object.fromEntries(users.map(u => [String(u.id), blankRep(u, C, cal.workingDays.monthTotal, boards)]));
 
   const specs = aggregateSpecs(cal);
   const pastDays = cal.monthWorkingDays.filter(d => d < cal.today);
@@ -162,8 +197,8 @@ export async function loadData({ coql, getUsers, now = new Date(), cfg, store = 
     ws.forEach((s, i) => mergeAggregate(out, s, rows[i], col => col));
     return out;
   };
-  const comps = await buildComps(cfg.competitions || [], fetchWindow, cal, C, reps);
+  const comps = await buildComps(contestDefs(contests), fetchWindow, cal, C, reps);
   const active = reps.filter(r => r.calls_mtd > 0 || r.sch_mtd > 0 || r.att_mtd > 0 || r.calls_lm > 0 || r.sch_lm > 0 || r.att_lm > 0);
   const digest = buildDigest(active, cal, C, comps);
-  return { asOf: now.toISOString(), config: C, reps, comps, digest, calendar: cal, stats: { ...runner.stats, ms: Date.now() - started, users: allUsers.length, boardReps: reps.length, activeReps: active.length } };
+  return { asOf: now.toISOString(), config: C, reps, comps, digest, calendar: cal, settings: { boards, contests }, holidays: hol.list, notices, stats: { ...runner.stats, ms: Date.now() - started, users: allUsers.length, boardReps: reps.length, activeReps: active.length } };
 }

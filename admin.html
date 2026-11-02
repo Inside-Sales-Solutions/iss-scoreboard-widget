@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Scoreboard Admin</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap">
+<link rel="stylesheet" href="css/scoreboard.css">
+<link rel="stylesheet" href="css/widget.css">
+<link rel="stylesheet" href="css/admin.css">
+</head>
+<body>
+<header class="band">
+  <div class="wrap">
+    <div class="brandrow">
+      <div class="wordmark" aria-label="Inside Sales Solutions"><b>INSIDE</b><span>SALES SOLUTIONS</span></div>
+      <div>
+        <h1>Scoreboard Admin</h1>
+        <div class="sub">Targets, weights, contests and holidays for the SDR &amp; BDR Scoreboard. Changes show the next time the board loads.</div>
+        <div class="fresh"><a class="linkbtn" id="back" href="index.html">Back to scoreboard</a></div>
+      </div>
+    </div>
+  </div>
+</header>
+<nav class="wrap viewnav" id="tabs" hidden><div class="seg" role="tablist" aria-label="Settings">
+  <button type="button" role="tab" data-tab="boards" aria-pressed="true">Boards</button>
+  <button type="button" role="tab" data-tab="contests" aria-pressed="false">Contests</button>
+  <button type="button" role="tab" data-tab="holidays" aria-pressed="false">Holidays</button>
+</div></nav>
+<main class="wrap" id="admin">
+  <div class="panel loading"><div class="spin" aria-hidden="true"></div><span>Loading settings from Zoho CRM…</span></div>
+</main>
+<div class="toast" id="toast" role="status" hidden></div>
+<script src="https://live.zwidgets.com/js-sdk/1.5/ZohoEmbededAppSDK.min.js"></script>
+<script type="module" src="js/admin/main.js"></script>
+</body>
+</html>

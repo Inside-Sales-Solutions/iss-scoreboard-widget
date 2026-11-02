@@ -47,7 +47,8 @@ export function repTargets(level, cfg, monthTotal) {
 // Score a rep's KPIs over `days` working days against their own pro-rated targets.
 // `act(kpi)` returns the actual for a KPI. Shared by the leaderboard and competitions.
 export function scoreKpis(r, days, cfg, act, keys = null) {
-  const W = cfg.weights, T = cfg.dailyTargets, mt = cfg.workingDays.monthTotal;
+  // Weights and cap come from the rep's own Board record when it has one.
+  const W = r.weights ?? cfg.weights, cap = r.cap ?? cfg.cap, T = cfg.dailyTargets, mt = cfg.workingDays.monthTotal;
   const isNH = isNHLevel(r.level);
   const ln = isNH ? cfg.nhPoints : levelNum(r.level);
   const rows = [];
@@ -62,7 +63,7 @@ export function scoreKpis(r, days, cfg, act, keys = null) {
       target = ln * days / mt;
     } else if (!(r.targets?.[k.key] ?? T[k.key])) { rows.push({ ...k, actual, target: null, noTarget: true }); continue; }
     else target = (r.targets?.[k.key] ?? T[k.key]) * days;
-    const att = target > 0 ? Math.min(actual / target, cfg.cap) : 0;
+    const att = target > 0 ? Math.min(actual / target, cap) : 0;
     ws += (W[k.key] || 0) * att; wsum += (W[k.key] || 0);
     rows.push({ ...k, actual, target, att });
   }

@@ -11,7 +11,8 @@ const fromUtc = d => `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}-${pad(d.
 
 export const addDays = (s, n) => { const d = utc(s); d.setUTCDate(d.getUTCDate() + n); return fromUtc(d); };
 export const dow = s => utc(s).getUTCDay();
-export const isWorkingDay = s => { const w = dow(s); return w >= 1 && w <= 5; };
+const NONE = new Set();
+export const isWorkingDay = (s, holidays = NONE) => { const w = dow(s); return w >= 1 && w <= 5 && !holidays.has(s); };
 export const monthStartOf = s => s.slice(0, 8) + '01';
 export const monthEndOf = s => { const [y, m] = split(s); return fromUtc(new Date(Date.UTC(y, m, 0))); };
 export const addMonths = (s, n) => {
@@ -20,9 +21,9 @@ export const addMonths = (s, n) => {
   return fromUtc(new Date(Date.UTC(y, m - 1 + n, Math.min(d, last))));
 };
 
-export function workingDaysBetween(a, b) {
+export function workingDaysBetween(a, b, holidays = NONE) {
   const out = [];
-  for (let s = a; s <= b; s = addDays(s, 1)) if (isWorkingDay(s)) out.push(s);
+  for (let s = a; s <= b; s = addDays(s, 1)) if (isWorkingDay(s, holidays)) out.push(s);
   return out;
 }
 
@@ -49,33 +50,42 @@ export const dayStart = (s, tz = TZ) => `${s}T00:00:00${offsetAt(s, 0, tz)}`;
 export const dayEnd = (s, tz = TZ) => `${s}T23:59:59${offsetAt(s, 23, tz)}`;
 export const window = (a, b, tz = TZ) => [dayStart(a, tz), dayEnd(b, tz)];
 
-export function previousWorkingDay(s) {
-  const w = dow(s);
-  return addDays(s, w === 1 ? -3 : w === 0 ? -2 : -1);
+export function previousWorkingDay(s, holidays = NONE) {
+  let d = addDays(s, -1);
+  while (!isWorkingDay(d, holidays)) d = addDays(d, -1);
+  return d;
+}
+
+// Start and end dates for the admin page's When buttons. Week is Monday to Friday.
+export function periodDates(period, today) {
+  if (period === 'week') { const mon = addDays(today, -((dow(today) + 6) % 7)); return [mon, addDays(mon, 4)]; }
+  if (period === 'month') return [monthStartOf(today), monthEndOf(today)];
+  return [today, today];
 }
 
 const monthLabel = s => utc(s).toLocaleDateString('en-US', { month: 'long', year: 'numeric', timeZone: 'UTC' });
 const shortLabel = s => utc(s).toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' });
 
-export function buildCalendar(now = new Date(), tz = TZ) {
+export function buildCalendar(now = new Date(), tz = TZ, holidays = NONE) {
   const today = dateIn(now, tz);
-  const yesterday = previousWorkingDay(today);
+  const yesterday = previousWorkingDay(today, holidays);
   const weekStart = addDays(today, -((dow(today) + 6) % 7));
   const monthStart = monthStartOf(today);
   const monthEnd = monthEndOf(today);
   const month = k => { const st = addMonths(monthStart, -k); return { start: st, end: monthEndOf(st) }; };
   const months = { m1: month(1), m2: month(2), m3: month(3) };
-  const monthWorkingDays = today >= monthStart ? workingDaysBetween(monthStart, today) : [];
+  const wdb = (a, b) => workingDaysBetween(a, b, holidays);
+  const monthWorkingDays = today >= monthStart ? wdb(monthStart, today) : [];
   const w = (a, b) => window(a, b, tz);
   return {
-    tz, today, yesterday, weekStart, monthStart, monthEnd, months, monthWorkingDays,
+    tz, holidays, today, yesterday, weekStart, monthStart, monthEnd, months, monthWorkingDays,
     workingDays: {
-      monthTotal: workingDaysBetween(monthStart, monthEnd).length,
+      monthTotal: wdb(monthStart, monthEnd).length,
       monthElapsed: monthWorkingDays.length,
-      weekElapsed: workingDaysBetween(weekStart, today).length,
-      lastMonthTotal: workingDaysBetween(months.m1.start, months.m1.end).length,
+      weekElapsed: wdb(weekStart, today).length,
+      lastMonthTotal: wdb(months.m1.start, months.m1.end).length,
     },
-    daysThru: yesterday >= monthStart ? workingDaysBetween(monthStart, yesterday).length : 0,
+    daysThru: yesterday >= monthStart ? wdb(monthStart, yesterday).length : 0,
     labels: { month: monthLabel(monthStart), week: `Week of ${shortLabel(weekStart)}`, lastMonth: monthLabel(months.m1.start) },
     win: {
       tdy: w(today, today),
