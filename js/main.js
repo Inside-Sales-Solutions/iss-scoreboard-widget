@@ -23,7 +23,22 @@ async function getUsers() {
     if (!users.length || !res.info?.more_records) return out;
   }
 }
-const coql = query => ZOHO.CRM.API.coql({ select_query: query });
+// COQL goes through the SDK 1.5 request client (zrc) to API v8. ZOHO.CRM.API.coql is pinned to
+// /crm/v2/coql, which has no aggregate functions (COUNT/SUM/GROUP BY), and the board depends on them.
+export const COQL_PATH = '/crm/v8/coql';
+async function coql(query) {
+  let res;
+  try {
+    res = await zrc.post(COQL_PATH, { select_query: query });
+  } catch (err) {
+    const body = err?.data ?? err?.response?.data ?? err;
+    throw new Error(body?.message ? `${body.code || 'COQL error'}: ${body.message}` : (err?.message || String(err)));
+  }
+  // zrc wraps the HTTP body as { data: body, ... }; COQL's own body is { data: [rows], info }.
+  const body = res && !Array.isArray(res.data) && res.data && typeof res.data === 'object' ? res.data : res;
+  if (body?.status === 'error') throw new Error(`${body.code}: ${body.message}`);
+  return body || { data: [], info: {} };
+}
 
 function showError(err) {
   $('loading').hidden = true;
