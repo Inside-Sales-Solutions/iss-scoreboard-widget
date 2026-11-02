@@ -97,7 +97,13 @@ export function blankRep(u, cfg, monthTotal) {
   return r;
 }
 
-export const isBoardRep = (u, cfg) => (u.status || u.Status || '').toLowerCase() === 'active' && u.Is_SDR === true && cfg.teams.includes(u.Team);
+// Reps come from COQL on the users module, which returns the custom fields (Is_SDR, Team,
+// Payband_Milestone). The SDK's getAllUsers (API v2) does not, so every rep was filtered out.
+export function usersQuery(cfg) {
+  return `select id, first_name, last_name, Is_SDR, Team, Payband_Milestone, status from users where ${and("Is_SDR = true", "status = 'active'", inList('Team', cfg.teams))} order by id asc`;
+}
+
+export const isBoardRep =(u, cfg) => (u.status || u.Status || '').toLowerCase() === 'active' && u.Is_SDR === true && cfg.teams.includes(u.Team);
 
 export function countHitDays(r, cal) {
   let calls = 0, sched = 0;
@@ -127,7 +133,7 @@ export async function loadData({ coql, getUsers, now = new Date(), cfg, store = 
   const cal = buildCalendar(now, cfg.tz);
   const C = { ...cfg, workingDays: cal.workingDays, monthLabel: cal.labels.month, weekLabel: cal.labels.week, lastMonthLabel: cal.labels.lastMonth };
   const runner = makeRunner(coql);
-  const allUsers = await getUsers();
+  const allUsers = getUsers ? await getUsers() : await runner.all(usersQuery(cfg));
   const users = allUsers.filter(u => isBoardRep(u, cfg));
   const byId = Object.fromEntries(users.map(u => [String(u.id), blankRep(u, C, cal.workingDays.monthTotal)]));
 

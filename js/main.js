@@ -13,16 +13,6 @@ const safeStorage = s => ({
 });
 const local = (() => { try { return safeStorage(window.localStorage); } catch { return null; } })();
 
-async function getUsers() {
-  const out = [];
-  for (let page = 1; ; page++) {
-    const res = await ZOHO.CRM.API.getAllUsers({ Type: 'ActiveUsers', page, per_page: 200 });
-    const users = res?.users || [];
-    if (page === 1) console.info('[ISS Scoreboard] first user from getAllUsers', users[0]);
-    out.push(...users);
-    if (!users.length || !res.info?.more_records) return out;
-  }
-}
 // COQL goes through the SDK 1.5 request client (zrc) to API v8. ZOHO.CRM.API.coql is pinned to
 // /crm/v2/coql, which has no aggregate functions (COUNT/SUM/GROUP BY), and the board depends on them.
 export const COQL_PATH = '/crm/v8/coql';
@@ -55,7 +45,7 @@ function showError(err) {
 
 // Always live: every open and every Refresh queries the CRM. Only completed past days'
 // call counts are reused (localStorage), since those days are over.
-const load = () => loadData({ coql, getUsers, cfg: CONFIG, store: local });
+const load = () => loadData({ coql, cfg: CONFIG, store: local });
 
 async function show() {
   const btn = $('refresh');
