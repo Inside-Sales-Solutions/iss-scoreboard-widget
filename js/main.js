@@ -55,6 +55,7 @@ async function show() {
 
 function start() {
   mount();
+  $('help-link').href = pageHref('help.html');
   $('refresh').onclick = () => show();
   if (typeof ZOHO === 'undefined' || !ZOHO.embeddedApp) { showError(new Error('The Zoho SDK did not load. Open this page from the Scoreboard tab in Zoho CRM.')); return; }
   // JS SDK 1.5: init() resolves once CRM has handed the widget its context.

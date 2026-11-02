@@ -28,3 +28,7 @@ body{margin:0}
 .adminbtn:hover{background:var(--accent);color:#fff}
 .adminbtn:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .adminbtn[hidden]{display:none}
+.helpbtn{display:inline-flex;align-items:center;align-self:center;gap:6px;padding:9px 12px;border-radius:10px;border:1px solid var(--line);color:var(--ink);background:var(--panel);font:600 13px var(--f-body);text-decoration:none;cursor:pointer}
+.helpbtn svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.helpbtn:hover{border-color:var(--accent);color:var(--accent)}
+.helpbtn:focus-visible{outline:2px solid var(--accent);outline-offset:2px}

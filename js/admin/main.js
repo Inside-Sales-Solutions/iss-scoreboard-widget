@@ -53,6 +53,7 @@ function fail(msg) { const root = $('admin'); root.textContent = ''; root.append
 
 async function start() {
   $('back').href = pageHref('index.html');
+  $('help-link').href = pageHref('help.html') + '#admin';
   const user = await currentUser();
   if (!canPickReps(user, CONFIG)) return fail('You need the Administrator profile to change scoreboard settings.');
   for (const b of document.querySelectorAll('#tabs button')) b.onclick = () => {
