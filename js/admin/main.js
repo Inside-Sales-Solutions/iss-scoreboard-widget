@@ -15,9 +15,11 @@ import { banner } from './ui.js';
 const $ = id => document.getElementById(id);
 const CFG = { ...CONFIG, ...CONFIG.defaults };
 const TABS = { boards: renderBoards, contests: renderContests, holidays: renderHolidays };
+// '#contests/new' (the board's "+ New Competition" button) opens the Contests tab at the form.
+const [HASH_TAB, HASH_SUB] = location.hash.slice(1).split('/');
 
 const state = {
-  tab: TABS[location.hash.slice(1)] ? location.hash.slice(1) : 'boards',
+  tab: TABS[HASH_TAB] ? HASH_TAB : 'boards',
   cfg: CFG, settings: [], boards: {}, contests: [], reps: [], drafts: {}, ui: {}, boardGroup: 'SDR',
   save: saveSetting, remove: deleteSetting, getHolidays, setHolidays,
 };
@@ -65,6 +67,10 @@ async function start() {
   try {
     state.reps = await loadReps();
     await reload();
+    if (state.tab === 'contests' && HASH_SUB === 'new') {
+      const f = $('contest-form');
+      if (f) { f.scrollIntoView({ block: 'start' }); f.querySelector('input')?.focus({ preventScroll: true }); }
+    }
   } catch (err) {
     console.error('[ISS Scoreboard admin] load failed', err);
     fail(`Settings couldn't load: ${err.message}`);

@@ -96,7 +96,7 @@ function teamPicker(D, state, reps) {
 
 function form(state) {
   const D = state.contestDraft || (state.contestDraft = fresh(state));
-  const box = el('div', 'abox'); const reps = repsFor(state, D.group);
+  const box = el('div', 'abox'); box.id = 'contest-form'; const reps = repsFor(state, D.group);
   box.append(el('b', null, D.id ? 'Edit competition' : 'New competition'));
   box.append(field('Name', textInput(D.name, { label: 'Name', placeholder: 'e.g. Director Appointment Play Off', onChange: v => { D.name = v; } })));
   box.append(field('Group', seg([...Object.keys(GROUPS).map(g => [g, g]), ['All', 'All']], D.group, v => {

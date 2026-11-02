@@ -42,7 +42,11 @@ async function show() {
     const admin = canPickReps(user, CONFIG);
     setViewer({ canPick: admin, team: viewerTeam(user, data.reps, CONFIG) });
     $('admin-link').hidden = !admin;
-    if (admin) $('admin-link').href = pageHref('admin.html');
+    $('new-comp').hidden = !admin;
+    if (admin) {
+      $('admin-link').href = pageHref('admin.html');
+      $('new-comp').href = pageHref('admin.html') + '#contests/new';
+    }
     setData(data);
     $('loading').hidden = true; $('app').hidden = false;
   } catch (err) {
