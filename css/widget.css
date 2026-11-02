@@ -1,0 +1,16 @@
+/* Widget-only additions on top of Aidan's styles: loading, errors, refresh. */
+:root{color-scheme:light}
+body{margin:0}
+[hidden]{display:none!important}
+.fresh{font-size:12px;color:var(--muted);margin-top:4px;display:flex;gap:8px;align-items:center}
+.linkbtn{background:none;border:0;padding:0;color:var(--accent);font:600 12px var(--f-body);cursor:pointer}
+.linkbtn:disabled{color:var(--muted);cursor:default}
+.loading{display:flex;gap:12px;align-items:center;color:var(--muted);margin-top:24px}
+.spin{width:18px;height:18px;border-radius:50%;border:2px solid var(--track);border-top-color:var(--accent);animation:spin 0.8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.failure{margin-top:24px;border-color:color-mix(in srgb,var(--bad) 40%,var(--line))}
+.failure h3{margin:0 0 6px;font:700 16px var(--f-display);color:var(--bad)}
+.failure p{margin:4px 0;color:var(--muted)}
+.failure code{font-size:12px;word-break:break-word}
+.notice{margin-top:14px}
+.notice + .notice{margin-top:8px}

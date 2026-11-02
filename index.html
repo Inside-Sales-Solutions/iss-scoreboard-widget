@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ISS Scoreboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap">
+<link rel="stylesheet" href="css/scoreboard.css">
+<link rel="stylesheet" href="css/widget.css">
+</head>
+<body>
+<header class="band">
+  <div class="wrap">
+    <div class="brandrow">
+      <div class="wordmark" aria-label="Inside Sales Solutions"><b>INSIDE</b><span>SALES SOLUTIONS</span></div>
+      <div>
+        <h1>SDR &amp; BDR Scoreboard</h1>
+        <div class="sub" id="sub">Loading from Zoho CRM…</div>
+        <div class="fresh"><span id="asof"></span> <button type="button" class="linkbtn" id="refresh" hidden>Refresh</button></div>
+      </div>
+    </div>
+    <div class="controls">
+      <div class="seg" role="group" aria-label="Period">
+        <button type="button" id="p-today" aria-pressed="false">Today</button>
+        <button type="button" id="p-week" aria-pressed="false">This week</button>
+        <button type="button" id="p-month" aria-pressed="true">This month</button>
+        <button type="button" id="p-lastmonth" aria-pressed="false">Last month</button>
+      </div>
+    </div>
+  </div>
+</header>
+
+<nav class="wrap viewnav"><div class="seg" role="tablist" aria-label="View">
+  <button type="button" role="tab" id="v-board-btn" aria-pressed="true">Leaderboard</button>
+  <button type="button" role="tab" id="v-comps-btn" aria-pressed="false">Competitions <span class="cnt" id="comp-count"></span></button>
+  <button type="button" role="tab" id="v-digest-btn" aria-pressed="false">Daily digest</button>
+</div></nav>
+
+<main class="wrap">
+  <div class="panel loading" id="loading"><div class="spin" aria-hidden="true"></div><span id="loading-msg">Loading live numbers from Zoho CRM…</span></div>
+  <div class="panel failure" id="failure" hidden></div>
+  <div id="app" hidden>
+  <div class="notice" id="notice"></div>
+  <section id="v-digest" hidden>
+    <h2 id="dg-title">Daily digest</h2>
+    <p class="lede" id="dg-lede"></p>
+    <div id="digest"></div>
+  </section>
+  <section id="v-comps" hidden>
+    <h2>Competitions</h2>
+    <p class="lede">Live competitions first. Each card shows the standings and, underneath, exactly how every score was worked out.</p>
+    <div class="comps" id="comps"></div>
+  </section>
+  <div id="v-board">
+    <div class="tiles" id="tiles"></div>
+
+    <h2>Top of the board</h2>
+    <p class="lede">Ranked by Activity Score: each rep's results measured against the targets for their own promotion level, so 100 means on pace whatever the level.</p>
+    <div class="podium" id="podium"></div>
+
+    <h2>Leaderboard</h2>
+    <div class="chips" id="chips" role="group" aria-label="Division"></div>
+    <div class="tablebox">
+      <table class="lb" id="lb">
+        <thead><tr>
+          <th class="l">#</th><th class="l">Rep</th><th class="l">Level</th><th>Activity score</th>
+          <th title="Attended points">Att. points</th><th title="Scheduled points">Sched. points</th><th title="Scheduled appointments">Sched. appts</th><th title="Attended appointments">Att. appts</th><th>1st enc.</th><th>Calls</th><th>Talk</th><th>Senior</th><th>Referrals</th>
+        </tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+    <p class="how" style="margin-top:8px">Select a rep to open their scorecard.</p>
+
+    <div class="two">
+      <section>
+        <h2>Race to the next level</h2>
+        <p class="lede">Average promotion points over the last three full months, against the next level up. Levels never go down once reached.</p>
+        <div class="panel">
+          <div class="legend"><span>Last 3 full months</span><span class="tick">Current level</span></div>
+          <div class="race" id="race"></div>
+        </div>
+      </section>
+      <section>
+        <h2>Division standings</h2>
+        <p class="lede">Average Activity Score of each division's active reps.</p>
+        <div class="panel"><div class="div" id="divs"></div></div>
+      </section>
+    </div>
+  </div>
+  </div>
+</main>
+
+<footer class="wrap">
+  <h2 style="margin-top:0">How the scores work</h2>
+  <ul class="how" id="how"></ul>
+  <p class="how" id="stats"></p>
+</footer>
+<div id="tip" hidden></div>
+
+<script src="vendor/ZohoEmbededAppSDK.min.js"></script>
+<script type="module" src="js/main.js"></script>
+</body>
+</html>
