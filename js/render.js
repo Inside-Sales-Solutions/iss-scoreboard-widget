@@ -1,13 +1,14 @@
 // Aidan's scoreboard rendering, ported from his page. It reads the same DATA shape;
 // the main differences are live data, empty states for the 1st and weekends, and a re-render entry point.
 
-import { KPIS, SFX, isPts, computeRep, levelTitle, divOf } from './scoring.js';
+import { KPIS, SFX, isPts, computeRep, levelTitle, divOf, isNHLevel, levelNum } from './scoring.js';
 import { buildDigest } from './digest.js';
 import { GROUPS, groupOf } from './settings.js';
 
 // onlyTeam: the viewer's own team when they're a rep (they only see their division), else null.
 let DATA = null, C = null, active = [], canPick = false, onlyTeam = null, lastAll = [];
-const state = { period: 'month', div: 'BDR', open: null, raceAll: false, periodChosen: false, picked: null, compFilter: 'active' };
+const state = { period: 'month', div: 'BDR', open: null, raceAll: false, periodChosen: false, picked: null, compFilter: 'active',
+  sort: { key: 'rank', dir: 'asc' }, filters: { rep: '', level: '', min: {} } };
 const view = { v: location.hash === '#competitions' ? 'comps' : location.hash === '#digest' ? 'digest' : 'board' };
 
 const fmt = n => Math.round(n).toLocaleString('en-US');
@@ -33,7 +34,27 @@ export function setData(d) {
   active = DATA.reps.filter(r => r.calls_mtd > 0 || r.sch_mtd > 0 || r.att_mtd > 0 || r.calls_lm > 0 || r.sch_lm > 0 || r.att_lm > 0);
   // Before the month's first working day there is nothing to score yet, so open on last month.
   if (!state.periodChosen) state.period = C.workingDays.monthElapsed === 0 ? 'lastmonth' : 'month';
+  // A Refresh brings fresh DATA without the custom range's totals, so fetch them again.
+  if (state.period === 'custom' && state.range) { loadRange(state.range.from, state.range.to); return; }
   render();
+}
+
+const PERIODS = [['p-today', 'today'], ['p-week', 'week'], ['p-month', 'month'], ['p-lastmonth', 'lastmonth'], ['p-custom', 'custom']];
+const shortDate = s => new Date(s + 'T12:00:00Z').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' });
+
+async function loadRange(from, to) {
+  const msg = $('range-msg'), go = $('range-go');
+  if (!from || !to) { msg.textContent = 'Pick both dates.'; return; }
+  if (from > to) { msg.textContent = 'The start date is after the end date.'; return; }
+  msg.textContent = 'Loading…'; go.disabled = true;
+  try {
+    await DATA.loadRange(from, to);
+    state.range = { from, to }; state.period = 'custom'; state.periodChosen = true; msg.textContent = '';
+    render();
+  } catch (err) {
+    console.error('[ISS Scoreboard] custom range failed', err);
+    msg.textContent = `Couldn't load that range: ${err.message}`;
+  } finally { go.disabled = false; }
 }
 
 function notices(P) {
@@ -47,6 +68,7 @@ function notices(P) {
   if (draft.length) add('Draft', `Targets for ${listText(draft)} are placeholders until an admin saves them.`);
   const wd = C.workingDays, cal = DATA.calendar;
   if (P === 'month' && wd.monthElapsed === 0) add('No data yet', `${C.monthLabel} hasn't had a working day yet. Last month shows ${C.lastMonthLabel}'s final standings.`);
+  if (P === 'custom') add('Custom range', `Scored against ${wd.custom} working day${wd.custom === 1 ? '' : 's'} of targets (days after today don't count). Levels and targets are each rep's current ones.`);
   if (P === 'today' && cal && !isWeekday(cal.today)) add('Weekend', "Today isn't a working day, so today's numbers are scored against one day's targets and will mostly be zero.");
   box.className = box.childElementCount ? 'notices' : '';
 }
@@ -58,13 +80,17 @@ const isWeekday = s => { const d = new Date(s + 'T12:00:00Z').getUTCDay(); retur
 function render() {
   if (!DATA) return;
   const P = state.period;
-  for (const [id, p] of [['p-today', 'today'], ['p-week', 'week'], ['p-month', 'month'], ['p-lastmonth', 'lastmonth']]) $(id).setAttribute('aria-pressed', P === p);
+  for (const [id, p] of PERIODS) $(id).setAttribute('aria-pressed', P === p);
+  $('range').hidden = P !== 'custom' && !state.rangeOpen;
   const asOf = new Date(DATA.asOf);
-  $('sub').textContent = P === 'lastmonth' ? `${C.lastMonthLabel || 'Last month'} final standings` : `${P === 'week' ? C.weekLabel : P === 'today' ? 'Today' : C.monthLabel} so far`;
+  $('sub').textContent = P === 'custom' ? `${shortDate(state.range.from)} to ${shortDate(state.range.to)}`
+    : P === 'lastmonth' ? `${C.lastMonthLabel || 'Last month'} final standings` : `${P === 'week' ? C.weekLabel : P === 'today' ? 'Today' : C.monthLabel} so far`;
   $('asof').textContent = `Live from Zoho CRM · loaded ${asOf.toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}`;
   notices(P);
 
-  const everyone = active.map(r => compute(r, P)).sort((a, b) => b.score - a.score);
+  // A custom range can reach back before this month, so its reps are whoever had activity in it.
+  const pool = P === 'custom' ? DATA.reps.filter(r => r.calls_cus > 0 || r.sch_cus > 0 || r.att_cus > 0) : active;
+  const everyone = pool.map(r => compute(r, P)).sort((a, b) => b.score - a.score);
   if (onlyTeam) state.div = divOf(onlyTeam);
   const all = onlyTeam ? everyone.filter(x => x.r.team === onlyTeam) : everyone;
   lastAll = all;
@@ -131,6 +157,9 @@ function renderPicker(all) {
 
 function pickRep(id) {
   state.picked = id || null;
+  // Clear the table filters so the picked rep can't be hidden by them.
+  state.filters = { rep: '', level: '', min: {} };
+  for (const inp of document.querySelectorAll('#lb tr.filters input')) inp.value = '';
   const x = lastAll.find(y => y.r.id === id);
   if (x) { state.div = x.div; state.open = id; }
   setView('board');
@@ -152,9 +181,40 @@ function renderTiles(all, P) {
   }
 }
 
-function renderLeaderboard(list, P) {
+// Leaderboard sort and filters. `#` stays the Activity Score rank whatever the sort.
+const kpiVal = (x, k) => x.rows.find(q => q.key === k)?.actual || 0;
+const SORT_VAL = {
+  rank: x => x.rank, name: x => x.r.name.toLowerCase(),
+  level: x => isNHLevel(x.r.level) ? 0 : (levelNum(x.r.level) ?? -1),
+  score: x => x.score, talk: (x, P) => (x.r['talk_' + SFX(P)] || 0) / 3600,
+};
+const colVal = (x, k, P) => (SORT_VAL[k] || (y => kpiVal(y, k)))(x, P);
+
+function sortAndFilter(list, P) {
+  const f = state.filters, q = f.rep.trim().toLowerCase();
+  const out = list.map((x, i) => ({ ...x, rank: i + 1 })).filter(x =>
+    (!q || x.r.name.toLowerCase().includes(q)) && (!f.level || (x.r.level || '') === f.level) &&
+    Object.entries(f.min).every(([k, m]) => m === '' || colVal(x, k, P) >= +m));
+  const { key, dir } = state.sort, sign = dir === 'asc' ? 1 : -1;
+  return out.sort((a, b) => { const va = colVal(a, key, P), vb = colVal(b, key, P); return (va < vb ? -1 : va > vb ? 1 : 0) * sign || a.rank - b.rank; });
+}
+
+function renderLbHead(list) {
+  for (const th of document.querySelectorAll('#lb tr.sorts th')) {
+    const on = th.dataset.sort === state.sort.key;
+    th.setAttribute('aria-sort', on ? (state.sort.dir === 'asc' ? 'ascending' : 'descending') : 'none');
+  }
+  const sel = $('f-level'), levels = [...new Set(list.map(x => x.r.level || ''))].filter(Boolean)
+    .sort((a, b) => (isNHLevel(a) ? 0 : levelNum(a) ?? -1) - (isNHLevel(b) ? 0 : levelNum(b) ?? -1) || a.localeCompare(b));
+  if (state.filters.level && !levels.includes(state.filters.level)) levels.push(state.filters.level);
+  sel.textContent = ''; sel.append(new Option('All levels', ''), ...levels.map(l => new Option(l, l))); sel.value = state.filters.level;
+}
+
+function renderLeaderboard(all, P) {
+  renderLbHead(all);
+  const list = sortAndFilter(all, P);
   const tb = document.querySelector('#lb tbody'); tb.textContent = '';
-  list.forEach((x, i) => {
+  list.forEach(x => { const i = x.rank - 1;
     const r = x.r, tr = el('tr', 'row' + (i < 3 ? ' top' : '') + (state.picked === r.id ? ' picked' : '')); tr.tabIndex = 0; tr.setAttribute('aria-expanded', state.open === r.id);
     const pts = x.rows[0];
     tr.append(el('td', 'rank l', String(i + 1)));
@@ -172,7 +232,7 @@ function renderLeaderboard(list, P) {
     tb.append(tr);
     if (state.open === r.id) { const d = el('tr', 'detail'); const td = el('td'); td.colSpan = 13; td.append(scorecard(x, P)); d.append(td); tb.append(d); }
   });
-  if (!list.length) { const tr = el('tr'); const td = el('td', 'l', 'No active reps in this division yet.'); td.colSpan = 13; tr.append(td); tb.append(tr); }
+  if (!list.length) { const tr = el('tr'); const td = el('td', 'l', all.length ? 'No reps match these filters.' : 'No active reps in this division yet.'); td.colSpan = 13; tr.append(td); tb.append(tr); }
 }
 
 function renderRace(list) {
@@ -421,8 +481,30 @@ function setView(v) {
 }
 
 export function mount() {
-  for (const [id, p] of [['p-today', 'today'], ['p-week', 'week'], ['p-month', 'month'], ['p-lastmonth', 'lastmonth']])
-    $(id).onclick = () => { state.period = p; state.periodChosen = true; render(); };
+  for (const [id, p] of PERIODS) {
+    if (p === 'custom') continue;
+    $(id).onclick = () => { state.period = p; state.periodChosen = true; state.rangeOpen = false; render(); };
+  }
+  // Custom opens the From / To row; the range loads on Apply (or straight away if one was loaded before).
+  $('p-custom').onclick = () => {
+    state.rangeOpen = true;
+    if (!$('range-from').value) { $('range-from').value = DATA.calendar.monthStart; $('range-to').value = DATA.calendar.today; }
+    if (state.range) { state.period = 'custom'; render(); } else { $('range').hidden = false; $('p-custom').setAttribute('aria-pressed', true); }
+  };
+  $('range-go').onclick = () => loadRange($('range-from').value, $('range-to').value);
+  // Leaderboard: click a header to sort (again to flip); the filter row narrows the rows.
+  for (const th of document.querySelectorAll('#lb tr.sorts th')) {
+    th.tabIndex = 0;
+    const go = () => {
+      const k = th.dataset.sort;
+      state.sort = state.sort.key === k ? { key: k, dir: state.sort.dir === 'asc' ? 'desc' : 'asc' } : { key: k, dir: k === 'name' || k === 'rank' ? 'asc' : 'desc' };
+      render();
+    };
+    th.onclick = go; th.onkeydown = e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); go(); } };
+  }
+  $('f-rep').oninput = e => { state.filters.rep = e.target.value; render(); };
+  $('f-level').onchange = e => { state.filters.level = e.target.value; render(); };
+  for (const inp of document.querySelectorAll('#lb [data-min]')) inp.oninput = () => { state.filters.min[inp.dataset.min] = inp.value; render(); };
   $('v-digest-btn').onclick = () => setView('digest');
   $('v-board-btn').onclick = () => setView('board');
   $('v-comps-btn').onclick = () => setView('comps');

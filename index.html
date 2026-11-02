@@ -34,6 +34,13 @@
         <button type="button" id="p-week" aria-pressed="false">This week</button>
         <button type="button" id="p-month" aria-pressed="true">This month</button>
         <button type="button" id="p-lastmonth" aria-pressed="false">Last month</button>
+        <button type="button" id="p-custom" aria-pressed="false">Custom</button>
+      </div>
+      <div class="range" id="range" hidden>
+        <label>From <input type="date" id="range-from"></label>
+        <label>To <input type="date" id="range-to"></label>
+        <button type="button" class="rangego" id="range-go">Apply</button>
+        <span class="rangemsg" id="range-msg" role="status"></span>
       </div>
      </div>
     </div>
@@ -80,9 +87,24 @@
     <div class="chips" id="chips" role="group" aria-label="Division"></div>
     <div class="tablebox">
       <table class="lb" id="lb">
-        <thead><tr>
-          <th class="l">#</th><th class="l">Rep</th><th class="l">Level</th><th>Activity score</th>
-          <th title="Attended points">Att. points</th><th title="Scheduled points">Sched. points</th><th title="Scheduled appointments">Sched. appts</th><th title="Attended appointments">Att. appts</th><th>1st enc.</th><th>Calls</th><th>Talk</th><th>Senior</th><th>Referrals</th>
+        <thead><tr class="sorts">
+          <th class="l" data-sort="rank">#</th><th class="l" data-sort="name">Rep</th><th class="l" data-sort="level">Level</th><th data-sort="score">Activity score</th>
+          <th title="Attended points" data-sort="points">Att. points</th><th title="Scheduled points" data-sort="schedPoints">Sched. points</th><th title="Scheduled appointments" data-sort="scheduled">Sched. appts</th><th title="Attended appointments" data-sort="attended">Att. appts</th><th data-sort="firstEnc">1st enc.</th><th data-sort="calls">Calls</th><th title="Talk time in hours" data-sort="talk">Talk</th><th data-sort="senior">Senior</th><th data-sort="referrals">Referrals</th>
+        </tr>
+        <tr class="filters">
+          <th></th>
+          <th class="l"><input type="text" id="f-rep" placeholder="Filter reps…" aria-label="Filter by rep name"></th>
+          <th class="l"><select id="f-level" aria-label="Filter by level"><option value="">All levels</option></select></th>
+          <th><input type="number" data-min="score" placeholder="≥" aria-label="Minimum activity score"></th>
+          <th><input type="number" data-min="points" placeholder="≥" aria-label="Minimum attended points"></th>
+          <th><input type="number" data-min="schedPoints" placeholder="≥" aria-label="Minimum scheduled points"></th>
+          <th><input type="number" data-min="scheduled" placeholder="≥" aria-label="Minimum scheduled appointments"></th>
+          <th><input type="number" data-min="attended" placeholder="≥" aria-label="Minimum attended appointments"></th>
+          <th><input type="number" data-min="firstEnc" placeholder="≥" aria-label="Minimum first encounters"></th>
+          <th><input type="number" data-min="calls" placeholder="≥" aria-label="Minimum calls"></th>
+          <th><input type="number" data-min="talk" placeholder="≥ h" aria-label="Minimum talk time in hours"></th>
+          <th><input type="number" data-min="senior" placeholder="≥" aria-label="Minimum senior contacts"></th>
+          <th><input type="number" data-min="referrals" placeholder="≥" aria-label="Minimum referrals"></th>
         </tr></thead>
         <tbody></tbody>
       </table>

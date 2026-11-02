@@ -2,7 +2,7 @@
 // Filters copy Aidan's "Scoreboard - Rep KPIs" query table, quirks included (see docs/data-model.md).
 
 import { and, between, inList, makeRunner } from './coql.js';
-import { buildCalendar, dateIn, dayEnd, dayStart, window } from './dates.js';
+import { buildCalendar, dateIn, dayEnd, dayStart, window, workingDaysBetween } from './dates.js';
 import { boardsByGroup, contestDefs, GROUPS, groupOf, isRealDate, parseHolidays, parseRecord, pickLevel, resolveTargets } from './settings.js';
 import { buildDigest } from './digest.js';
 import { buildComps } from './comps.js';
@@ -51,6 +51,20 @@ export function windowSpecs(win) {
     agg('x', ['senior'], 'ISS_Appointments', 'Created_By', 'COUNT(id)', and(sched, inList('Seniority_Level', SENIOR_LEVELS))),
     agg('x', ['calls'], 'Calls', 'Owner', 'COUNT(id)', between('Created_Time', win)),
     agg('x', ['referrals'], 'Calls', 'Owner', 'COUNT(id)', and(REFERRAL, between('Created_Time', win))),
+  ];
+}
+
+// Leaderboard columns for a custom date range (the "Custom" period), merged as `${col}_cus`.
+export function rangeSpecs(win) {
+  const sched = and(SCHEDULED, between('Created_Time', win));
+  return [
+    agg('cus', ['att', 'p'], 'ISS_Appointments', 'Created_By', 'COUNT(id), SUM(Points)', and(inList('Appointment_Status', ATT_STATUSES), between('Appointment_Date', win))),
+    agg('cus', ['sch', 'sp'], 'ISS_Appointments', 'Created_By', 'COUNT(id), SUM(Points)', sched),
+    agg('cus', ['fe'], 'ISS_Appointments', 'Created_By', 'COUNT(id)', and(sched, 'First_Encounter = true')),
+    agg('cus', ['sen'], 'ISS_Appointments', 'Created_By', 'COUNT(id)', and(sched, inList('Seniority_Level', SENIOR_LEVELS))),
+    agg('cus', ['calls', 'talk'], 'Calls', 'Owner', 'COUNT(id), SUM(Call_Duration_in_seconds)', between('Created_Time', win)),
+    agg('cus', ['ref'], 'Calls', 'Owner', 'COUNT(id)', and(REFERRAL, between('Created_Time', win))),
+    agg('cus', ['mob'], 'Motivator_Tracker', 'Owner', 'COUNT(id)', and(inList('Type', PHONE_EDIT_TYPES), between('Created_Time', win))),
   ];
 }
 
@@ -200,5 +214,15 @@ export async function loadData({ coql, getUsers, listSettings, getHolidays, now 
   const comps = await buildComps(contestDefs(contests), fetchWindow, cal, C, reps);
   const active = reps.filter(r => r.calls_mtd > 0 || r.sch_mtd > 0 || r.att_mtd > 0 || r.calls_lm > 0 || r.sch_lm > 0 || r.att_lm > 0);
   const digest = buildDigest(active, cal, C, comps);
-  return { asOf: now.toISOString(), config: C, reps, comps, digest, calendar: cal, settings: { boards, contests }, holidays: hol.list, notices, stats: { ...runner.stats, ms: Date.now() - started, users: allUsers.length, boardReps: reps.length, activeReps: active.length } };
+  // Custom period: totals for from..to, scored against the working days in the range up to today.
+  const loadRange = async (from, to) => {
+    const ws = rangeSpecs(window(from, to, cal.tz));
+    const rows = await Promise.all(ws.map(s => runner.run(`${s.query} limit 2000`).then(x => x.data)));
+    for (const r of reps) for (const c of COLS) r[`${c}_cus`] = 0;
+    ws.forEach((s, i) => mergeAggregate(byId, s, rows[i]));
+    const end = to < cal.today ? to : cal.today;
+    C.workingDays.custom = end >= from ? workingDaysBetween(from, end, hol.set).length : 0;
+    C.customRange = { from, to };
+  };
+  return { asOf: now.toISOString(), config: C, reps, comps, digest, calendar: cal, settings: { boards, contests }, holidays: hol.list, notices, loadRange, stats: { ...runner.stats, ms: Date.now() - started, users: allUsers.length, boardReps: reps.length, activeReps: active.length } };
 }

@@ -15,6 +15,22 @@ body{margin:0}
 .picker{display:flex;align-items:center;gap:8px;font:600 13px var(--f-body);color:var(--muted)}
 .picker select{font:600 13px var(--f-body);color:var(--ink);background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:8px 10px;box-shadow:var(--shadow);max-width:260px}
 .lb tr.picked td{background:var(--accent-soft)}
+/* The open rep: its row and scorecard are tinted, with an accent edge, so they stand out from the rest. */
+.lb tbody tr.row[aria-expanded="true"] td{background:color-mix(in srgb,var(--accent) 14%,var(--panel))}
+.lb tbody tr.row[aria-expanded="true"] td:first-child{box-shadow:inset 4px 0 0 var(--accent)}
+tr.detail td{background:color-mix(in srgb,var(--accent) 7%,var(--panel));box-shadow:inset 4px 0 0 var(--accent)}
+.promo{background:color-mix(in srgb,var(--accent) 16%,var(--panel));border-color:color-mix(in srgb,var(--accent) 45%,var(--line))}
+/* Leaderboard sort headers and filter row. */
+.lb tr.sorts th{cursor:pointer;user-select:none}
+.lb tr.sorts th:hover{color:var(--ink)}
+.lb tr.sorts th[aria-sort="ascending"]::after{content:" ▲";color:var(--accent)}
+.lb tr.sorts th[aria-sort="descending"]::after{content:" ▼";color:var(--accent)}
+.lb tr.sorts th[aria-sort]:not([aria-sort="none"]){color:var(--ink)}
+.lb tr.filters th{position:static;padding:6px 6px 8px;text-transform:none;letter-spacing:0}
+.lb tr.filters input,.lb tr.filters select{font:500 12px var(--f-body);color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:4px 6px;box-sizing:border-box}
+.lb tr.filters input[type=number]{width:58px;text-align:right}
+.lb tr.filters #f-rep{width:150px}
+.lb tr.filters #f-level{max-width:120px}
 .compfilter{margin:0 0 14px}
 .compfilter .cnt{background:var(--track);color:var(--ink)}
 /* Digest tables: narrow left-aligned rank, name, value on the right. */
@@ -36,6 +52,16 @@ body{margin:0}
 .helpbtn svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 .helpbtn:hover{border-color:var(--accent);color:var(--accent)}
 .helpbtn:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+/* Custom period: From / To dates under the period switcher. */
+.controls{display:flex;flex-direction:column;align-items:flex-end;gap:8px}
+.range{display:flex;flex-wrap:wrap;align-items:center;justify-content:flex-end;gap:8px;font:600 13px var(--f-body);color:var(--muted)}
+.range label{display:flex;align-items:center;gap:6px}
+.range input{font:500 13px var(--f-body);color:var(--ink);background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:6px 8px}
+.rangego{font:600 13px var(--f-body);color:#fff;background:var(--accent);border:0;border-radius:8px;padding:7px 14px;cursor:pointer}
+.rangego:disabled{opacity:.6;cursor:default}
+.rangemsg{flex-basis:100%;text-align:right;font-weight:500}
+.rangemsg:empty{display:none}
+@media (max-width:720px){.controls,.range{align-items:flex-start;justify-content:flex-start}.rangemsg{text-align:left}}
 /* Active / Ended / All filter with the admin-only "+ New Competition" button beside it. */
 .compbar{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:0 0 14px}
 .compbar .compfilter{margin:0}

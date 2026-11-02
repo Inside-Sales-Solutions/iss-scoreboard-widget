@@ -1,7 +1,7 @@
 // Targets and the Activity Score. compute() is Aidan's logic from his scoreboard page,
 // moved out of the page so it can be tested and reused by competitions.
 
-export const SFX = p => p === 'week' ? 'wtd' : p === 'today' ? 'tdy' : p === 'lastmonth' ? 'lm' : 'mtd';
+export const SFX = p => p === 'week' ? 'wtd' : p === 'today' ? 'tdy' : p === 'lastmonth' ? 'lm' : p === 'custom' ? 'cus' : 'mtd';
 
 export const KPIS = [
   { key: 'points', label: 'Attended points', col: 'p' },
@@ -71,7 +71,7 @@ export function scoreKpis(r, days, cfg, act, keys = null) {
 }
 
 export function daysFor(period, wd) {
-  return period === 'week' ? wd.weekElapsed : period === 'today' ? 1 : period === 'lastmonth' ? wd.monthTotal : wd.monthElapsed;
+  return period === 'week' ? wd.weekElapsed : period === 'today' ? 1 : period === 'lastmonth' ? wd.monthTotal : period === 'custom' ? (wd.custom || 0) : wd.monthElapsed;
 }
 
 export function computeRep(r, period, cfg) {
