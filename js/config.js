@@ -35,5 +35,29 @@ export const CONFIG = {
   //   format: 'individual' | 'teams' | 'division', scoring: 'raw' | 'fixed' | 'target',
   //   fixedTargets: { calls: 250 }, teamCalc: 'avg' | 'sum',
   //   who: 'All' | 'BDR Division' | ... (individual), teams: [{ name, members: [userId] }] }
-  competitions: [],
+  competitions: [
+    // Aidan's October 2026 competitions, copied from his scoreboard page (snapshot 2026-10-30).
+    {
+      id: 'ozlmzj8xb95fns3kt62m', name: 'Director Activity Play off', start: '2026-10-26', end: '2026-10-30', goal: '', prize: '',
+      metric: 'score', metrics: ['score'], format: 'teams', scoring: 'target', teamCalc: 'avg',
+      teams: [
+        { name: 'Team 1', members: ['6556356000061053071'] },
+        { name: 'Team 2', members: ['6556356000061053063'] },
+      ],
+    },
+    {
+      id: 'fms54fmytv47pvlea5tc', name: 'Trainnee Comp.', start: '2026-10-28', end: '2026-10-31', goal: '', prize: '',
+      metric: 'score', metrics: ['score'], format: 'individual', scoring: 'target', who: 'Picked',
+      members: ['6556356000368960010', '6556356000368960006', '6556356000398786739', '6556356000368960002', '6556356000368927318',
+        '6556356000368953001', '6556356000369291256', '6556356000368918268', '6556356000398786728', '6556356000368937003'],
+    },
+    {
+      id: 'v2i47kdhr1i5u0k9iv06', name: 'Trainee Comp', start: '2026-10-29', end: '2026-10-29', goal: 'First to 250 then go home', prize: 'GHT',
+      metric: 'calls', metrics: ['calls'], format: 'teams', scoring: 'target', teamCalc: 'avg',
+      teams: [
+        { name: 'Team 1', members: ['6556356000368927318', '6556356000398786741'] },
+        { name: 'Team 2', members: ['6556356000326574716', '6556356000398786730'] },
+      ],
+    },
+  ],
 };

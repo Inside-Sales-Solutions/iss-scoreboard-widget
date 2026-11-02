@@ -1,7 +1,7 @@
 // Competition standings over each competition's own dates, in the shape Aidan's page renders.
 
-import { window, workingDaysBetween } from './dates.js';
-import { KPIS, scoreKpis, divOf } from './scoring.js';
+import { monthEndOf, monthStartOf, window, workingDaysBetween } from './dates.js';
+import { KPIS, scoreKpis, divOf, repTargets } from './scoring.js';
 
 const DIVS = { BDR: 'BDR Division', P4P: 'P4P Division', Training: 'Training' };
 
@@ -40,26 +40,31 @@ function participants(def, reps) {
   return reps.filter(r => !def.who || def.who === 'All' || r.team === def.who);
 }
 
-export async function buildComps(defs, fetchWindow, cal, cfg, reps) {
-  const out = [];
-  for (const def of defs) {
-    const status = statusOf(def, cal.today);
-    const base = { ...def, status, standings: [], hasData: false, days: 0, weights: def.metric === 'score' ? cfg.weights : {}, cap: cfg.cap };
-    if (status === 'upcoming') { out.push(base); continue; }
-    const end = def.end < cal.today ? def.end : cal.today;
-    const days = workingDaysBetween(def.start, end).length;
-    const m = await fetchWindow(window(def.start, end, cal.tz));
-    const member = r => ({ name: r.name, level: r.level, div: divOf(r.team), team: null, ...repValue(def, r, m[r.id], days, cfg) });
-    let standings;
-    if (def.format === 'teams' || def.format === 'division') {
-      standings = participants(def, reps).map(t => {
-        const members = t.members.map(member).sort((a, b) => b.value - a.value);
-        const sum = members.reduce((s, x) => s + x.value, 0);
-        return { name: t.name, value: def.teamCalc === 'sum' ? sum : sum / (members.length || 1), n: members.length, members };
-      });
-    } else standings = participants(def, reps).map(member);
-    standings.sort((a, b) => b.value - a.value);
-    out.push({ ...base, standings, hasData: true, days });
-  }
-  return out;
+export function buildComps(defs, fetchWindow, cal, cfg, reps) {
+  return Promise.all(defs.map(def => buildComp(def, fetchWindow, cal, cfg, reps)));
+}
+
+async function buildComp(def, fetchWindow, cal, cfg, reps) {
+  const status = statusOf(def, cal.today);
+  const base = { ...def, status, standings: [], hasData: false, days: 0, weights: def.metric === 'score' ? cfg.weights : {}, cap: cfg.cap };
+  if (status === 'upcoming') return base;
+  const end = def.end < cal.today ? def.end : cal.today;
+  const days = workingDaysBetween(def.start, end).length;
+  const m = await fetchWindow(window(def.start, end, cal.tz));
+  // Targets use the working days of the competition's own month, as Aidan's page did.
+  const ms = monthStartOf(def.start);
+  const monthTotal = workingDaysBetween(ms, monthEndOf(ms)).length;
+  const c = { ...cfg, workingDays: { ...cfg.workingDays, monthTotal } };
+  const member = r => ({ name: r.name, level: r.level, div: divOf(r.team), team: null,
+    ...repValue(def, { ...r, targets: repTargets(r.level, c, monthTotal) }, m[r.id], days, c) });
+  let standings;
+  if (def.format === 'teams' || def.format === 'division') {
+    standings = participants(def, reps).map(t => {
+      const members = t.members.map(member).sort((a, b) => b.value - a.value);
+      const sum = members.reduce((s, x) => s + x.value, 0);
+      return { name: t.name, value: def.teamCalc === 'sum' ? sum : sum / (members.length || 1), n: members.length, members };
+    });
+  } else standings = participants(def, reps).map(member);
+  standings.sort((a, b) => b.value - a.value);
+  return { ...base, standings, hasData: true, days };
 }
