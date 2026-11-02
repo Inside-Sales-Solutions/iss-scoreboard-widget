@@ -3,7 +3,7 @@
 import { CONFIG } from './config.js';
 import { loadData } from './data.js';
 import { mount, setData, setViewer } from './render.js';
-import { canPickReps } from './access.js';
+import { canPickReps, viewerTeam } from './access.js';
 
 const $ = id => document.getElementById(id);
 
@@ -47,13 +47,17 @@ function showError(err) {
 // call counts are reused (localStorage), since those days are over.
 const load = () => loadData({ coql, cfg: CONFIG, store: local });
 
+// The viewer is known before the first render, so a rep never sees other divisions flash up.
+let viewer = Promise.resolve(null);
+
 async function show() {
   const btn = $('refresh');
   btn.disabled = true; btn.textContent = 'Refreshing…';
   $('failure').hidden = true;
   if ($('app').hidden) $('loading').hidden = false;
   try {
-    const data = await load();
+    const [data, user] = await Promise.all([load(), viewer]);
+    setViewer({ canPick: canPickReps(user, CONFIG), team: viewerTeam(user, data.reps, CONFIG) });
     setData(data);
     $('loading').hidden = true; $('app').hidden = false;
   } catch (err) {
@@ -72,10 +76,10 @@ function start() {
   let started = false;
   ZOHO.embeddedApp.init().then(() => {
     started = true;
+    viewer = ZOHO.CRM.CONFIG.getCurrentUser()
+      .then(res => res?.users?.[0] || null)
+      .catch(err => { console.warn('[ISS Scoreboard] could not read the current user', err); return null; });
     show();
-    ZOHO.CRM.CONFIG.getCurrentUser()
-      .then(res => setViewer({ canPick: canPickReps(res?.users?.[0], CONFIG) }))
-      .catch(err => console.warn('[ISS Scoreboard] could not read the current user', err));
   });
   setTimeout(() => { if (!started) showError(new Error('This page only works inside Zoho CRM. Open it from the Scoreboard tab.')); }, 10000);
 }

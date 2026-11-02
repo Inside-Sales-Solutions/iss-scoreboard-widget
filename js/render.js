@@ -1,9 +1,11 @@
 // Aidan's scoreboard rendering, ported from his page. It reads the same DATA shape;
 // the main differences are live data, empty states for the 1st and weekends, and a re-render entry point.
 
-import { KPIS, SFX, isPts, computeRep, levelTitle } from './scoring.js';
+import { KPIS, SFX, isPts, computeRep, levelTitle, divOf } from './scoring.js';
+import { buildDigest } from './digest.js';
 
-let DATA = null, C = null, W = null, active = [], canPick = false, lastAll = [];
+// onlyTeam: the viewer's own team when they're a rep (they only see their division), else null.
+let DATA = null, C = null, W = null, active = [], canPick = false, onlyTeam = null, lastAll = [];
 const state = { period: 'month', div: 'BDR', open: null, raceAll: false, periodChosen: false, picked: null, compFilter: 'active' };
 const view = { v: location.hash === '#competitions' ? 'comps' : location.hash === '#digest' ? 'digest' : 'board' };
 
@@ -53,7 +55,9 @@ function render() {
   $('asof').textContent = `Live from Zoho CRM · loaded ${asOf.toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}`;
   notices(P);
 
-  const all = active.map(r => compute(r, P)).sort((a, b) => b.score - a.score);
+  const everyone = active.map(r => compute(r, P)).sort((a, b) => b.score - a.score);
+  if (onlyTeam) state.div = divOf(onlyTeam);
+  const all = onlyTeam ? everyone.filter(x => x.r.team === onlyTeam) : everyone;
   lastAll = all;
   renderPicker(all);
   renderTiles(all, P);
@@ -68,7 +72,8 @@ function render() {
   if (!all.length) pod.append(el('div', 'panel empty', 'No activity logged for this period yet.'));
 
   const chips = $('chips'); chips.textContent = '';
-  for (const d of ['BDR', 'P4P', 'Training', 'All', 'Other']) {
+  chips.hidden = !!onlyTeam;
+  for (const d of ['BDR', 'P4P', 'Training', 'All', ...(all.some(x => x.div === 'Other') ? ['Other'] : [])]) {
     const b = el('button', 'chip', d); b.type = 'button'; b.setAttribute('aria-pressed', state.div === d);
     b.onclick = () => { state.div = d; state.open = null; render(); }; chips.append(b);
   }
@@ -76,7 +81,8 @@ function render() {
   const list = all.filter(x => state.div === 'All' || x.div === state.div);
   renderLeaderboard(list, P);
   renderRace(list);
-  renderDivisions(all);
+  // Division standings are averages with no names, so every viewer sees all divisions.
+  renderDivisions(everyone);
   renderHow();
   const s = DATA.stats;
   $('stats').textContent = s ? `Loaded with ${s.queries} CRM queries in ${(s.ms / 1000).toFixed(1)}s · ${s.rows ?? '?'} rows · ${s.users ?? '?'} users, ${s.boardReps ?? '?'} on the board, ${s.activeReps ?? '?'} active.` : '';
@@ -93,8 +99,8 @@ const ICON = {
 const TC = { 'Scheduled appts': 'var(--accent)', 'Attended appts': 'var(--ok)', 'Attended points': 'var(--purple)', 'Scheduled points': 'var(--brand)', Calls: 'var(--gold)', 'Active reps': 'var(--teal)' };
 
 // Admin-only "View rep" picker: jumps to the rep's division and opens their scorecard.
-// Everyone else sees the same full board without it.
-export function setViewer({ canPick: allowed }) { canPick = !!allowed; render(); }
+// Reps see only their own division; admins and other viewers see the full board.
+export function setViewer({ canPick: allowed, team = null }) { canPick = !!allowed; onlyTeam = canPick ? null : team; render(); }
 
 function renderPicker(all) {
   $('picker').hidden = !canPick;
@@ -307,7 +313,12 @@ function renderComps() {
 }
 
 function renderDigest() {
-  const D = DATA.digest, box = $('digest'); box.textContent = '';
+  const box = $('digest'); box.textContent = '';
+  let D = DATA.digest;
+  if (D && onlyTeam) {
+    D = buildDigest(active.filter(r => r.team === onlyTeam), DATA.calendar, C, DATA.comps);
+    D.stars = D.stars.filter(g => g.division === onlyTeam);
+  }
   if (!D) { box.append(el('div', 'panel empty', 'No digest available.')); return; }
   const fdl = d => new Date(d + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' });
   $('dg-title').textContent = 'Daily digest · ' + fdl(D.date);

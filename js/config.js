@@ -3,7 +3,8 @@
 
 export const CONFIG = {
   tz: 'America/New_York',
-  teams: ['P4P Division', 'BDR Division', 'Training', 'WarDialers'],
+  // WarDialers left off for now (Aidan, 2026-11-02).
+  teams: ['P4P Division', 'BDR Division', 'Training'],
   placeholderTargets: true,
   dailyTargets: { calls: 175, scheduled: 2, attended: 1, firstEnc: 1, senior: 1, referrals: 0 },
   weights: { attended: 15, calls: 10, firstEnc: 10, points: 25, referrals: 0, schedPoints: 0, scheduled: 25, senior: 5 },
