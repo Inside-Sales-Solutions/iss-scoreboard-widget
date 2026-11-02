@@ -3,8 +3,8 @@
 
 import { KPIS, SFX, isPts, computeRep, levelTitle } from './scoring.js';
 
-let DATA = null, C = null, W = null, active = [];
-const state = { period: 'month', div: 'BDR', open: null, raceAll: false, periodChosen: false };
+let DATA = null, C = null, W = null, active = [], canPick = false, lastAll = [];
+const state = { period: 'month', div: 'BDR', open: null, raceAll: false, periodChosen: false, picked: null };
 const view = { v: location.hash === '#competitions' ? 'comps' : location.hash === '#digest' ? 'digest' : 'board' };
 
 const fmt = n => Math.round(n).toLocaleString('en-US');
@@ -54,6 +54,8 @@ function render() {
   notices(P);
 
   const all = active.map(r => compute(r, P)).sort((a, b) => b.score - a.score);
+  lastAll = all;
+  renderPicker(all);
   renderTiles(all, P);
   renderComps();
   renderDigest();
@@ -90,6 +92,37 @@ const ICON = {
 };
 const TC = { 'Scheduled appts': 'var(--accent)', 'Attended appts': 'var(--ok)', 'Attended points': 'var(--purple)', 'Scheduled points': 'var(--brand)', Calls: 'var(--gold)', 'Active reps': 'var(--teal)' };
 
+// Admin-only "View rep" picker: jumps to the rep's division and opens their scorecard.
+// Everyone else sees the same full board without it.
+export function setViewer({ canPick: allowed }) { canPick = !!allowed; render(); }
+
+function renderPicker(all) {
+  $('picker').hidden = !canPick;
+  if (!canPick) return;
+  const sel = $('rep-pick');
+  sel.textContent = '';
+  sel.append(new Option('Choose a rep…', ''));
+  const byDiv = {};
+  for (const x of all) (byDiv[x.div] ||= []).push(x);
+  for (const d of ['BDR', 'P4P', 'Training', 'Other']) {
+    if (!byDiv[d]) continue;
+    const g = document.createElement('optgroup'); g.label = d;
+    for (const x of byDiv[d].sort((a, b) => a.r.name.localeCompare(b.r.name))) g.append(new Option(`${x.r.name} · ${x.r.level || '—'}`, x.r.id));
+    sel.append(g);
+  }
+  sel.value = all.some(x => x.r.id === state.picked) ? state.picked : '';
+  sel.onchange = () => pickRep(sel.value);
+}
+
+function pickRep(id) {
+  state.picked = id || null;
+  const x = lastAll.find(y => y.r.id === id);
+  if (x) { state.div = x.div; state.open = id; }
+  setView('board');
+  render();
+  if (x) document.querySelector('#lb tr.picked')?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+}
+
 function renderTiles(all, P) {
   const sum = f => all.reduce((s, x) => s + f(x.r), 0);
   const sx = SFX(P);
@@ -107,7 +140,7 @@ function renderTiles(all, P) {
 function renderLeaderboard(list, P) {
   const tb = document.querySelector('#lb tbody'); tb.textContent = '';
   list.forEach((x, i) => {
-    const r = x.r, tr = el('tr', 'row' + (i < 3 ? ' top' : '')); tr.tabIndex = 0; tr.setAttribute('aria-expanded', state.open === r.id);
+    const r = x.r, tr = el('tr', 'row' + (i < 3 ? ' top' : '') + (state.picked === r.id ? ' picked' : '')); tr.tabIndex = 0; tr.setAttribute('aria-expanded', state.open === r.id);
     const pts = x.rows[0];
     tr.append(el('td', 'rank l', String(i + 1)));
     const n = el('td', 'name l', r.name); n.append(el('small', null, x.div)); tr.append(n);
@@ -168,7 +201,7 @@ function renderHow() {
     "Senior contacts = meetings booked (on the day booked) with a Director, Vice President or Chief-level person, from the appointment's Seniority Level. Referrals = calls logged as Suggested Colleague (conversation or admin); Booked Colleague is not a referral.",
     "Last month shows the previous calendar month's final standings against full monthly targets, recalculated from Zoho each time the board loads, so late status changes (e.g. a meeting marked Attended after month end) still count. It uses each rep's current level.",
     'Working days are Monday to Friday. Days run on Eastern time.',
-    'Source: Zoho CRM, read live when the board opens. Numbers are cached for 15 minutes; use Refresh to reload.',
+    'Source: Zoho CRM, read live every time the board opens. Use Refresh to reload.',
   ].forEach(t => how.append(el('li', null, t)));
 }
 

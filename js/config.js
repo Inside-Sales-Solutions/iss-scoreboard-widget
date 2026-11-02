@@ -27,7 +27,8 @@ export const CONFIG = {
     [56, 'Sales Executive'],
     [60, 'Senior Sales Executive'],
   ],
-  cacheMinutes: 15,
+  // Who sees the "View rep" picker, by CRM profile or role name. Add role names here later.
+  repPicker: { profiles: ['Administrator'], roles: [] },
   // Competitions. This file is published, so list participants by CRM user ID, never by name.
   // { id, name, start: 'YYYY-MM-DD', end, goal, prize,
   //   metric: 'score' | one KPI key, metrics: [KPI keys] (for non-score),

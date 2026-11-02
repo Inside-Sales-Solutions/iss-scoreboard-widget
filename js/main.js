@@ -1,17 +1,16 @@
-﻿// Widget entry: initialise the Zoho SDK, load live data (cached for a few minutes), render.
+// Widget entry: initialise the Zoho SDK, load live data from the CRM, render.
 
 import { CONFIG } from './config.js';
 import { loadData } from './data.js';
-import { mount, setData } from './render.js';
+import { mount, setData, setViewer } from './render.js';
+import { canPickReps } from './access.js';
 
 const $ = id => document.getElementById(id);
-const CACHE_KEY = 'iss-sb:data:v2';
 
 const safeStorage = s => ({
   get: k => { try { return JSON.parse(s.getItem(k)); } catch { return null; } },
   set: (k, v) => { try { s.setItem(k, JSON.stringify(v)); } catch { /* full or blocked */ } },
 });
-const session = (() => { try { return safeStorage(window.sessionStorage); } catch { return null; } })();
 const local = (() => { try { return safeStorage(window.localStorage); } catch { return null; } })();
 
 async function getUsers() {
@@ -54,21 +53,17 @@ function showError(err) {
   $('refresh').hidden = false; $('refresh').disabled = false;
 }
 
-async function load(force = false) {
-  const cached = session?.get(CACHE_KEY);
-  if (!force && cached && Date.now() - cached.t < CONFIG.cacheMinutes * 60e3) return cached.data;
-  const data = await loadData({ coql, getUsers, cfg: CONFIG, store: local });
-  session?.set(CACHE_KEY, { t: Date.now(), data });
-  return data;
-}
+// Always live: every open and every Refresh queries the CRM. Only completed past days'
+// call counts are reused (localStorage), since those days are over.
+const load = () => loadData({ coql, getUsers, cfg: CONFIG, store: local });
 
-async function show(force) {
+async function show() {
   const btn = $('refresh');
-  btn.disabled = true; btn.textContent = 'Refreshingâ€¦';
+  btn.disabled = true; btn.textContent = 'Refreshing…';
   $('failure').hidden = true;
   if ($('app').hidden) $('loading').hidden = false;
   try {
-    const data = await load(force);
+    const data = await load();
     setData(data);
     $('loading').hidden = true; $('app').hidden = false;
   } catch (err) {
@@ -81,11 +76,17 @@ async function show(force) {
 
 function start() {
   mount();
-  $('refresh').onclick = () => show(true);
+  $('refresh').onclick = () => show();
   if (typeof ZOHO === 'undefined' || !ZOHO.embeddedApp) { showError(new Error('The Zoho SDK did not load. Open this page from the Scoreboard tab in Zoho CRM.')); return; }
   // JS SDK 1.5: init() resolves once CRM has handed the widget its context.
   let started = false;
-  ZOHO.embeddedApp.init().then(() => { started = true; show(false); });
+  ZOHO.embeddedApp.init().then(() => {
+    started = true;
+    show();
+    ZOHO.CRM.CONFIG.getCurrentUser()
+      .then(res => setViewer({ canPick: canPickReps(res?.users?.[0], CONFIG) }))
+      .catch(err => console.warn('[ISS Scoreboard] could not read the current user', err));
+  });
   setTimeout(() => { if (!started) showError(new Error('This page only works inside Zoho CRM. Open it from the Scoreboard tab.')); }, 10000);
 }
 

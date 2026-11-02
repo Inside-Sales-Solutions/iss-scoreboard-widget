@@ -12,5 +12,8 @@ body{margin:0}
 .failure h3{margin:0 0 6px;font:700 16px var(--f-display);color:var(--bad)}
 .failure p{margin:4px 0;color:var(--muted)}
 .failure code{font-size:12px;word-break:break-word}
+.picker{display:flex;align-items:center;gap:8px;font:600 13px var(--f-body);color:var(--muted)}
+.picker select{font:600 13px var(--f-body);color:var(--ink);background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:8px 10px;box-shadow:var(--shadow);max-width:260px}
+.lb tr.picked td{background:var(--accent-soft)}
 .notice{margin-top:14px}
 .notice + .notice{margin-top:8px}
