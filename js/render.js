@@ -4,7 +4,7 @@
 import { KPIS, SFX, isPts, computeRep, levelTitle } from './scoring.js';
 
 let DATA = null, C = null, W = null, active = [], canPick = false, lastAll = [];
-const state = { period: 'month', div: 'BDR', open: null, raceAll: false, periodChosen: false, picked: null };
+const state = { period: 'month', div: 'BDR', open: null, raceAll: false, periodChosen: false, picked: null, compFilter: 'active' };
 const view = { v: location.hash === '#competitions' ? 'comps' : location.hash === '#digest' ? 'digest' : 'board' };
 
 const fmt = n => Math.round(n).toLocaleString('en-US');
@@ -254,9 +254,19 @@ function renderComps() {
   const comps = DATA.comps || [];
   const liveN = comps.filter(c => c.status === 'live').length;
   $('comp-count').textContent = liveN ? String(liveN) : '';
-  if (!comps.length) cbox.append(el('div', 'panel empty', 'No competitions right now.'));
+  // Active = live and upcoming; Ended = finished; All = both.
+  const isActive = c => c.status !== 'ended';
+  const activeN = comps.filter(isActive).length, endedN = comps.length - activeN;
+  $('cf-active').textContent = activeN ? String(activeN) : '';
+  $('cf-ended').textContent = endedN ? String(endedN) : '';
+  for (const b of document.querySelectorAll('.compfilter button')) b.setAttribute('aria-pressed', b.dataset.cf === state.compFilter);
+  const shown = comps.filter(c => state.compFilter === 'all' || (state.compFilter === 'active') === isActive(c));
+  if (!shown.length) cbox.append(el('div', 'panel empty',
+    state.compFilter === 'active' ? (endedN ? `No live or upcoming competitions. ${endedN} ended competition${endedN === 1 ? '' : 's'} under Ended.` : 'No competitions right now.')
+      : state.compFilter === 'ended' ? 'No ended competitions.' : 'No competitions yet.'));
   const order = { live: 0, upcoming: 1, ended: 2 };
-  for (const c of [...comps].sort((a, b) => order[a.status] - order[b.status])) {
+  // Ended ones newest first.
+  for (const c of [...shown].sort((a, b) => order[a.status] - order[b.status] || (a.status === 'ended' ? b.end.localeCompare(a.end) : a.start.localeCompare(b.start)))) {
     const card = el('div', 'cc'); const top = el('div', 'top');
     top.append(el('b', 't', c.name), el('span', 'pill ' + c.status, c.status));
     const isTeams = c.format === 'teams', isDiv = c.format === 'division';
@@ -389,5 +399,6 @@ export function mount() {
   $('v-digest-btn').onclick = () => setView('digest');
   $('v-board-btn').onclick = () => setView('board');
   $('v-comps-btn').onclick = () => setView('comps');
+  for (const b of document.querySelectorAll('.compfilter button')) b.onclick = () => { state.compFilter = b.dataset.cf; render(); };
   setView(view.v);
 }

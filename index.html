@@ -53,6 +53,11 @@
   <section id="v-comps" hidden>
     <h2>Competitions</h2>
     <p class="lede">Live competitions first. Each card shows the standings and, underneath, exactly how every score was worked out.</p>
+    <div class="seg compfilter" role="group" aria-label="Which competitions">
+      <button type="button" data-cf="active" aria-pressed="true">Active <span class="cnt" id="cf-active"></span></button>
+      <button type="button" data-cf="ended" aria-pressed="false">Ended <span class="cnt" id="cf-ended"></span></button>
+      <button type="button" data-cf="all" aria-pressed="false">All</button>
+    </div>
     <div class="comps" id="comps"></div>
   </section>
   <div id="v-board">
