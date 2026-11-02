@@ -127,7 +127,8 @@ export async function loadData({ coql, getUsers, now = new Date(), cfg, store = 
   const cal = buildCalendar(now, cfg.tz);
   const C = { ...cfg, workingDays: cal.workingDays, monthLabel: cal.labels.month, weekLabel: cal.labels.week, lastMonthLabel: cal.labels.lastMonth };
   const runner = makeRunner(coql);
-  const users = (await getUsers()).filter(u => isBoardRep(u, cfg));
+  const allUsers = await getUsers();
+  const users = allUsers.filter(u => isBoardRep(u, cfg));
   const byId = Object.fromEntries(users.map(u => [String(u.id), blankRep(u, C, cal.workingDays.monthTotal)]));
 
   const specs = aggregateSpecs(cal);
@@ -158,5 +159,5 @@ export async function loadData({ coql, getUsers, now = new Date(), cfg, store = 
   const comps = await buildComps(cfg.competitions || [], fetchWindow, cal, C, reps);
   const active = reps.filter(r => r.calls_mtd > 0 || r.sch_mtd > 0 || r.att_mtd > 0 || r.calls_lm > 0 || r.sch_lm > 0 || r.att_lm > 0);
   const digest = buildDigest(active, cal, C, comps);
-  return { asOf: now.toISOString(), config: C, reps, comps, digest, calendar: cal, stats: { ...runner.stats, ms: Date.now() - started } };
+  return { asOf: now.toISOString(), config: C, reps, comps, digest, calendar: cal, stats: { ...runner.stats, ms: Date.now() - started, users: allUsers.length, boardReps: reps.length, activeReps: active.length } };
 }

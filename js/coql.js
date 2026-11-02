@@ -10,14 +10,14 @@ export const PAGE = 2000;
 export function makeRunner(coqlFn, { concurrency = 6 } = {}) {
   let active = 0;
   const queue = [];
-  const stats = { queries: 0, failed: 0 };
+  const stats = { queries: 0, failed: 0, rows: 0 };
   const next = () => {
     if (active >= concurrency || !queue.length) return;
     const { query, resolve, reject } = queue.shift();
     active++; stats.queries++;
     Promise.resolve()
       .then(() => coqlFn(query))
-      .then(res => resolve({ data: res?.data || [], more: !!res?.info?.more_records }),
+      .then(res => { const data = Array.isArray(res?.data) ? res.data : []; stats.rows += data.length; resolve({ data, more: !!res?.info?.more_records }); },
         err => { stats.failed++; reject(Object.assign(new Error(describe(err)), { query, cause: err })); })
       .finally(() => { active--; next(); });
   };

@@ -77,7 +77,7 @@ function render() {
   renderDivisions(all);
   renderHow();
   const s = DATA.stats;
-  $('stats').textContent = s ? `Loaded with ${s.queries} CRM queries in ${(s.ms / 1000).toFixed(1)}s.` : '';
+  $('stats').textContent = s ? `Loaded with ${s.queries} CRM queries in ${(s.ms / 1000).toFixed(1)}s · ${s.rows ?? '?'} rows · ${s.users ?? '?'} users, ${s.boardReps ?? '?'} on the board, ${s.activeReps ?? '?'} active.` : '';
 }
 
 const ICON = {

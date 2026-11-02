@@ -1,11 +1,11 @@
-// Widget entry: initialise the Zoho SDK, load live data (cached for a few minutes), render.
+﻿// Widget entry: initialise the Zoho SDK, load live data (cached for a few minutes), render.
 
 import { CONFIG } from './config.js';
 import { loadData } from './data.js';
 import { mount, setData } from './render.js';
 
 const $ = id => document.getElementById(id);
-const CACHE_KEY = 'iss-sb:data:v1';
+const CACHE_KEY = 'iss-sb:data:v2';
 
 const safeStorage = s => ({
   get: k => { try { return JSON.parse(s.getItem(k)); } catch { return null; } },
@@ -19,6 +19,7 @@ async function getUsers() {
   for (let page = 1; ; page++) {
     const res = await ZOHO.CRM.API.getAllUsers({ Type: 'ActiveUsers', page, per_page: 200 });
     const users = res?.users || [];
+    if (page === 1) console.info('[ISS Scoreboard] first user from getAllUsers', users[0]);
     out.push(...users);
     if (!users.length || !res.info?.more_records) return out;
   }
@@ -35,7 +36,9 @@ async function coql(query) {
     throw new Error(body?.message ? `${body.code || 'COQL error'}: ${body.message}` : (err?.message || String(err)));
   }
   // zrc wraps the HTTP body as { data: body, ... }; COQL's own body is { data: [rows], info }.
-  const body = res && !Array.isArray(res.data) && res.data && typeof res.data === 'object' ? res.data : res;
+  if (!coql.logged) { coql.logged = true; console.info('[ISS Scoreboard] first zrc COQL response', res); }
+  let body = res && !Array.isArray(res.data) && res.data && typeof res.data === 'object' ? res.data : res;
+  if (typeof body === 'string') { try { body = JSON.parse(body); } catch { /* not JSON */ } }
   if (body?.status === 'error') throw new Error(`${body.code}: ${body.message}`);
   return body || { data: [], info: {} };
 }
@@ -61,7 +64,7 @@ async function load(force = false) {
 
 async function show(force) {
   const btn = $('refresh');
-  btn.disabled = true; btn.textContent = 'Refreshing…';
+  btn.disabled = true; btn.textContent = 'Refreshingâ€¦';
   $('failure').hidden = true;
   if ($('app').hidden) $('loading').hidden = false;
   try {
