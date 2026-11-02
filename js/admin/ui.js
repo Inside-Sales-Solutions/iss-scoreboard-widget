@@ -51,19 +51,43 @@ export function field(label, ...nodes) {
 
 const repLabel = r => `${r.name} · ${r.level || 'no level'}`;
 
-// Chips for the chosen reps plus an "Add a rep…" dropdown. `exclude` hides reps used elsewhere.
-export function repPicker({ selected, reps, exclude = [], onChange }) {
-  const wrap = el('div'); const chips = el('div', 'arow'); chips.style.margin = '0 0 6px';
-  const byId = Object.fromEntries(reps.map(r => [r.id, r]));
-  for (const id of selected) {
-    const c = el('span', 'chipx'); c.append(document.createTextNode(byId[id]?.name || id));
-    const x = el('button', null, '×'); x.type = 'button'; x.setAttribute('aria-label', `Remove ${byId[id]?.name || id}`);
-    x.onclick = () => onChange(selected.filter(v => v !== id)); c.append(x); chips.append(c);
+// Checkbox list of reps with a filter, Select all / Clear, and shift-click to tick or untick a
+// range. `exclude` hides reps used elsewhere. Every change re-renders the form, so the shift-click
+// anchor, filter text and list scroll are kept per picker `key`.
+const pickerState = {};
+export function repPicker({ selected, reps, exclude = [], onChange, key = 'reps' }) {
+  const ps = pickerState[key] || (pickerState[key] = { anchor: null, filter: '', scroll: 0 });
+  const list = reps.filter(r => selected.includes(r.id) || !exclude.includes(r.id));
+  const matches = r => repLabel(r).toLowerCase().includes(ps.filter.trim().toLowerCase());
+  const visible = () => list.filter(matches);
+  const apply = (ids, on) => {
+    const out = selected.filter(id => on || !ids.includes(id));
+    if (on) for (const id of ids) if (!out.includes(id)) out.push(id);
+    onChange(out);
+  };
+
+  const wrap = el('div', 'rpick'); const head = el('div', 'rpick-head');
+  const q = el('input'); q.type = 'text'; q.placeholder = 'Filter reps…'; q.value = ps.filter; q.setAttribute('aria-label', 'Filter reps');
+  head.append(q, el('span', 'amuted', `${selected.length} of ${list.length} selected`),
+    button('Select all', () => apply(visible().map(r => r.id), true)),
+    button('Clear', () => apply(visible().map(r => r.id), false)));
+
+  const box = el('div', 'rpick-list'); const items = [];
+  for (const r of list) {
+    const lab = el('label', 'rpick-item'); const cb = el('input'); cb.type = 'checkbox'; cb.checked = selected.includes(r.id);
+    cb.onclick = e => {
+      let ids = [r.id]; const vis = visible();
+      const i = vis.findIndex(x => x.id === ps.anchor), j = vis.findIndex(x => x.id === r.id);
+      if (e.shiftKey && i >= 0 && j >= 0) ids = vis.slice(Math.min(i, j), Math.max(i, j) + 1).map(x => x.id);
+      ps.anchor = r.id; ps.scroll = box.scrollTop;
+      apply(ids, cb.checked);
+    };
+    lab.append(cb, el('span', null, r.name), el('span', 'amuted', r.level || 'no level'));
+    lab.hidden = !matches(r); items.push([r, lab]); box.append(lab);
   }
-  if (!selected.length) chips.append(el('span', 'amuted', 'No reps yet'));
-  const s = el('select'); s.append(new Option('Add a rep…', ''));
-  for (const r of reps) if (!selected.includes(r.id) && !exclude.includes(r.id)) s.append(new Option(repLabel(r), r.id));
-  s.onchange = () => { if (s.value) onChange([...selected, s.value]); };
-  wrap.append(chips, s);
+  if (!list.length) box.append(el('span', 'amuted', 'No reps available'));
+  q.oninput = () => { ps.filter = q.value; for (const [r, lab] of items) lab.hidden = !matches(r); };
+  wrap.append(head, box, el('div', 'amuted', 'Shift-click to tick or untick every rep between two clicks.'));
+  requestAnimationFrame(() => { box.scrollTop = ps.scroll; });
   return wrap;
 }

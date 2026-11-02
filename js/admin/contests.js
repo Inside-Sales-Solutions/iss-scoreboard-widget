@@ -84,7 +84,7 @@ function teamPicker(D, state, reps) {
     hr.append(select(free.map(s => [s, s]), t.name, v => { t.name = v; state.rerender(); }, `Team ${i + 1}`));
     if (D.teams.length > 2) hr.append(button('Remove team', () => { D.teams.splice(i, 1); state.rerender(); }, 'danger'));
     c.append(hr, el('div', 'd', t.members.length === 1 ? '1 rep' : `${t.members.length} reps`),
-      repPicker({ selected: t.members, reps, exclude: taken.filter(id => !t.members.includes(id)), onChange: v => { t.members = v; state.rerender(); } }));
+      repPicker({ key: `team-${i}`, selected: t.members, reps, exclude: taken.filter(id => !t.members.includes(id)), onChange: v => { t.members = v; state.rerender(); } }));
     box.append(c);
   });
   const next = TEAMS.find(s => !D.teams.some(t => t.name === s));

@@ -37,6 +37,14 @@
 .tag.live{background:var(--accent-soft);color:var(--accent)}
 .tag.ended{background:var(--track);color:var(--muted)}
 .tag.upcoming{background:color-mix(in srgb,var(--warn) 18%,transparent);color:var(--warn)}
+.rpick{display:flex;flex-direction:column;gap:6px}
+.rpick-head{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+#admin .rpick-head input[type=text]{width:220px}
+.rpick-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:2px 12px;max-height:280px;overflow:auto;padding:6px;border:1px solid color-mix(in srgb,var(--muted) 35%,var(--line));border-radius:8px;background:var(--bg)}
+.rpick-item{display:flex;align-items:center;gap:8px;padding:4px 6px;border-radius:6px;cursor:pointer;user-select:none;font:500 13px var(--f-body)}
+.rpick-item:hover{background:var(--accent-soft)}
+.rpick-item input{accent-color:var(--accent);width:16px;height:16px;margin:0}
+.rpick-item .amuted{margin-left:auto;font-size:12px}
 .chipx{display:inline-flex;align-items:center;gap:4px;background:var(--accent-soft);color:var(--accent);font:600 13px var(--f-body);padding:3px 4px 3px 10px;border-radius:8px}
 .chipx button{border:0;background:transparent;color:inherit;font:700 15px/1 var(--f-body);cursor:pointer;padding:2px 5px;border-radius:6px}
 .abanner{background:var(--panel);border:1px solid var(--line);border-left:4px solid var(--warn);border-radius:12px;padding:10px 14px;margin:0 0 14px;font-size:14px}
