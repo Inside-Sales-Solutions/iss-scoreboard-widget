@@ -3,7 +3,7 @@
 
 import { KPIS, SFX, isPts, computeRep, levelTitle, divOf, isNHLevel, levelNum } from './scoring.js';
 import { buildDigest } from './digest.js';
-import { GROUPS, groupOf } from './settings.js';
+import { GROUPS, groupOf, overridePoints } from './settings.js';
 
 // onlyTeam: the viewer's own team when they're a rep (they only see their division), else null.
 let DATA = null, C = null, active = [], canPick = false, onlyTeam = null, lastAll = [];
@@ -240,11 +240,12 @@ const OVR_LABEL = { points: 'Attended points', schedPoints: 'Scheduled points', 
   firstEnc: 'First encounters', calls: 'Calls', senior: 'Senior contacts', referrals: 'Referrals' };
 function kpiCell(x, key, P, f) {
   const td = el('td', null, f(x.rows.find(q => q.key === key).actual));
-  const o = x.r.overrideInfo, v = o?.targets?.[key];
+  const o = x.r.overrideInfo, v = key === 'points' ? overridePoints(o?.targets) : o?.targets?.[key];
   if (v === null || v === undefined) return td;
   const monthly = key === 'calls' ? v * (C.workingDays?.monthTotal || 0) : v;
   td.classList.add('ovr');
-  td.title = `Override: ${OVR_LABEL[key]} ${fmt1(v)}${key === 'calls' ? ' a day' : ' a month'}${o.reason ? ` (${o.reason})` : ''}`;
+  const via = key === 'points' && o.targets.points == null ? ', from the Attended / month override' : '';
+  td.title = `Override: ${OVR_LABEL[key]} ${fmt1(v)}${key === 'calls' ? ' a day' : ' a month'}${via}${o.reason ? ` (${o.reason})` : ''}`;
   if (P === 'month' || P === 'lastmonth') td.append(el('span', 'frac', ' / ' + (key === 'calls' ? fmt(monthly) : fmt1(monthly))));
   return td;
 }
@@ -291,7 +292,7 @@ function renderHow() {
   const weights = g ? `(${weightLine(g)})` : `(${Object.keys(GROUPS).map(x => `${x}: ${weightLine(x)}`).join('; ')})`;
   [
     `Activity Score: for each KPI, actual ÷ target ${weights}. KPIs with a weight of 0 are shown but not scored. 100 = on pace. Targets scale with working days so far.`,
-    `Attended points target = promotion level (e.g. Avg 24 = 24 points a month). On the leaderboard, This month shows that full monthly number all month; the Activity Score still measures it against pace. Levels come from Zoho and never go down; promotion uses the average of the last 3 completed months. Promotion points count Attended, Reschedule-ABD and Cancelled-ISS meetings by meeting date. New hires (NH) have a points target of 8; their next level is Sales Development Representative at 8. Plain BDR level has no points target, so points are left out of their score. Scheduled points = the points value of every meeting booked, on the day it was booked, except those now Cancelled; its target is the same as the Attended points target unless a manager sets one. A manager can also give one rep their own Attended points target (a rep override); promotion still uses the level.`,
+    `Attended points target = promotion level (e.g. Avg 24 = 24 points a month). On the leaderboard, This month shows that full monthly number all month; the Activity Score still measures it against pace. Levels come from Zoho and never go down; promotion uses the average of the last 3 completed months. Promotion points count Attended, Reschedule-ABD and Cancelled-ISS meetings by meeting date. New hires (NH) have a points target of 8; their next level is Sales Development Representative at 8. Plain BDR level has no points target, so points are left out of their score. Scheduled points = the points value of every meeting booked, on the day it was booked, except those now Cancelled; its target is the same as the Attended points target unless a manager sets one. A rep override of Attended appointments also sets that rep's Attended points target (or it can be set on its own); promotion still uses the level.`,
     'Attended appointments = Attended, Reschedule-ABD or Cancelled-ISS, on the meeting date. Scheduled appointments = every meeting booked, on the day it was created, except those now Cancelled. First encounters and Senior contacts follow the same rule.',
     'Objective Score (in each scorecard) = share of working days this month the rep hit the daily calls and scheduled targets.',
     "Senior contacts = meetings booked (on the day booked) with a Director, Vice President or Chief-level person, from the appointment's Seniority Level. Referrals = calls logged as Suggested Colleague (conversation or admin); Booked Colleague is not a referral.",

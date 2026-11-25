@@ -93,7 +93,7 @@ function overridesEditor(draft, ctx) {
       draft.overrides[rep.id] = cur; ctx.rerender(); toast(`Override set for ${rep.name}. Select Save to keep it.`);
     });
     apply.style.marginTop = '10px';
-    ed.append(el('p', 'amuted', `Level: ${rep.level || 'no level'}. Leave a box empty to keep the level's number.`), grid, reason, el('div'), apply);
+    ed.append(el('p', 'amuted', `Level: ${rep.level || 'no level'}. Leave a box empty to keep the level's number. Attended / month also sets the rep's Attended points target${ctx.cfg.pointsOverride ? ' unless Attended points / month is filled in' : ''}.`), grid, reason, el('div'), apply);
   } else ed.append(el('p', 'amuted', "Pick a rep to see their level's targets and set their own."));
   wrap.append(list, ed);
   return wrap;

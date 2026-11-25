@@ -145,6 +145,9 @@ export function defaultLevelRow(level, cfg) {
 }
 
 // Per-day targets for one rep from one record: override cell, then the level row, then the starting rule.
+// A rep's monthly Attended points override: its own field, else their Attended / month override.
+export const overridePoints = t => t?.points ?? t?.attended ?? null;
+
 export function resolveTargets(rep, setting, cfg, monthTotal) {
   const base = repTargets(rep.level, cfg, monthTotal);
   if (!setting) return base;
@@ -156,8 +159,10 @@ export function resolveTargets(rep, setting, cfg, monthTotal) {
     if (v === null) { if (k in base) out[k] = base[k]; continue; }
     out[k] = k === 'calls' ? v : v / monthTotal;
   }
-  // Attended points: only a rep override changes it; otherwise scoring uses the level number.
-  if (ovr.points !== null && ovr.points !== undefined && monthTotal) out.points = ovr.points / monthTotal;
+  // Attended points: only a rep override changes it (otherwise scoring uses the level number).
+  // Its own override wins; without one, the rep's Attended / month override sets it too.
+  const pts = overridePoints(ovr);
+  if (pts !== null && monthTotal) out.points = pts / monthTotal;
   return out;
 }
 
