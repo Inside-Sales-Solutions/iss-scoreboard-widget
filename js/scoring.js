@@ -58,6 +58,7 @@ export function scoreKpis(r, days, cfg, act, keys = null) {
     const actual = act(k);
     let target;
     if (k.key === 'schedPoints' && r.targets?.schedPoints) target = r.targets.schedPoints * days;
+    else if (k.key === 'points' && r.targets?.points) target = r.targets.points * days;
     else if (isPts(k.key)) {
       if (!ln) { rows.push({ ...k, actual, target: null }); continue; }
       target = ln * days / mt;
@@ -81,5 +82,7 @@ export function computeRep(r, period, cfg) {
   const nxt = isNH ? { t: cfg.nhPoints, name: cfg.ladder.find(l => l[0] === cfg.nhPoints)?.[1] || 'Next level' } : nextLevel(ln, cfg.ladder);
   const objective = wd.monthElapsed ? ((r.days_calls_hit + r.days_sched_hit) / 2) / wd.monthElapsed * 100 : 0;
   const avg3 = (r.p_m3 + r.p_m2 + r.p_m1) / 3;
-  return { r, ln, isNH, nxt, rows, score, objective, avg3, div: divOf(r.team) };
+  // Monthly attended points target: the rep's override, else the level number. Promotion still uses ln.
+  const ptsTarget = r.targets?.points ? r.targets.points * wd.monthTotal : ln;
+  return { r, ln, isNH, nxt, rows, score, objective, avg3, ptsTarget, div: divOf(r.team) };
 }

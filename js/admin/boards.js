@@ -1,11 +1,14 @@
 // Boards tab: the everyday targets for SDR, BDR and Trainee. targetsEditor() is shared with the
 // Contests tab, which edits the same weights, cap, level targets and overrides on a contest.
 
+import { isNHLevel, levelNum } from '../scoring.js';
 import { GROUPS, LEVELS, MEASURES, WEIGHT_FIELDS, defaultLevelRow, toRecord, validateBoard } from '../settings.js';
 import { banner, button, el, numInput, select, seg, textInput, toast } from './ui.js';
 
 const TARGET_LABELS = { calls: 'Calls / day', scheduled: 'Scheduled / month', attended: 'Attended / month', schedPoints: 'Scheduled points / month',
   firstEnc: 'First encounters / month', senior: 'Senior contacts / month', referrals: 'Referrals / month' };
+// The override editor can also set Attended points (CONFIG.pointsOverride); level rows can't.
+const ovrLabels = cfg => (cfg.pointsOverride ? { points: 'Attended points / month', ...TARGET_LABELS } : TARGET_LABELS);
 const NULL_ROW = () => Object.fromEntries(Object.keys(TARGET_LABELS).map(k => [k, null]));
 const clone = v => JSON.parse(JSON.stringify(v));
 
@@ -60,7 +63,7 @@ function overridesEditor(draft, ctx) {
   if (!ids.length) list.append(el('p', 'amuted', "No overrides. Everyone uses their level's targets."));
   for (const id of ids) {
     const o = draft.overrides[id]; const item = el('div', 'aitem'); const info = el('div');
-    const set = Object.entries(o.targets).filter(([, v]) => v !== null).map(([k, v]) => `${TARGET_LABELS[k]} ${v}`).join(' · ');
+    const set = Object.entries(o.targets).filter(([, v]) => v !== null).map(([k, v]) => `${ovrLabels(ctx.cfg)[k] || k} ${v}`).join(' · ');
     info.append(el('b', null, byId[id]?.name || id), el('div', 'amuted', set || 'No changes'));
     if (o.reason) info.append(el('div', 'amuted', o.reason));
     const acts = el('div', 'arow');
@@ -72,12 +75,14 @@ function overridesEditor(draft, ctx) {
   const rep = byId[ui.ovRep];
   if (rep) {
     const cur = clone(draft.overrides[rep.id] || { targets: NULL_ROW(), reason: '' });
+    const labels = ovrLabels(ctx.cfg);
+    const levelPts = isNHLevel(rep.level) ? ctx.cfg.nhPoints : levelNum(rep.level);
     const lvl = draft.levels[rep.level] || {}; const start = rep.level ? defaultLevelRow(rep.level, ctx.cfg) : {};
     const grid = el('div', 'kgrid'); grid.style.marginTop = '10px';
-    for (const k of Object.keys(TARGET_LABELS)) {
-      const levelValue = lvl[k] ?? start[k] ?? (k === 'schedPoints' ? '= level' : '—');
-      const c = el('div', 'kcell'); c.append(el('div', 'k', TARGET_LABELS[k]),
-        numInput(cur.targets[k], { label: `${TARGET_LABELS[k]} for ${rep.name}`, placeholder: String(levelValue), onChange: v => { cur.targets[k] = v; } }),
+    for (const k of Object.keys(labels)) {
+      const levelValue = k === 'points' ? (levelPts ?? '—') : lvl[k] ?? start[k] ?? (k === 'schedPoints' ? '= level' : '—');
+      const c = el('div', 'kcell'); c.append(el('div', 'k', labels[k]),
+        numInput(cur.targets[k] ?? null, { label: `${labels[k]} for ${rep.name}`, placeholder: String(levelValue), onChange: v => { cur.targets[k] = v; } }),
         el('div', 'd', `Level: ${levelValue}`));
       grid.append(c);
     }
@@ -128,7 +133,7 @@ export function renderBoards(root, state) {
     const err = validateBoard(draft);
     if (err) return toast(err);
     save.disabled = true;
-    try { await state.save(toRecord({ ...draft, confirmed: true })); delete state.drafts[board.id]; toast(`${g} board saved`); await state.reload(); }
+    try { await state.save(toRecord({ ...draft, confirmed: true }, { pointsField: !!state.cfg.pointsOverride })); delete state.drafts[board.id]; toast(`${g} board saved`); await state.reload(); }
     catch (e) { toast(`Couldn't save: ${e.message}`); save.disabled = false; }
   }, 'primary');
   save.style.marginTop = '16px';

@@ -157,7 +157,7 @@ function form(state) {
     if (err) return toast(err);
     save.disabled = true;
     try {
-      await state.save(toRecord(out));
+      await state.save(toRecord(out, { pointsField: !!state.cfg.pointsOverride }));
       toast(D.id ? 'Competition saved' : 'Competition created');
       state.contestDraft = null; await state.reload();
     } catch (e) { toast(`Couldn't save: ${e.message}`); save.disabled = false; }

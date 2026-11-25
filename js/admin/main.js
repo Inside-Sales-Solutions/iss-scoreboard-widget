@@ -5,7 +5,7 @@ import { CONFIG } from '../config.js';
 import { canPickReps } from '../access.js';
 import { makeRunner } from '../coql.js';
 import { isBoardRep, usersQuery } from '../data.js';
-import { boardsByGroup, groupOf, parseRecord, pickLevel } from '../settings.js';
+import { boardsByGroup, groupOf, hiddenFields, parseRecord, pickLevel } from '../settings.js';
 import { coql, currentUser, deleteSetting, getHolidays, listSettings, pageHref, saveSetting, setHolidays } from '../crm.js';
 import { renderBoards } from './boards.js';
 import { renderContests } from './contests.js';
@@ -37,6 +37,13 @@ state.rerender = render;
 
 async function reload() {
   const recs = await listSettings();
+  // Without Record_Type and Group every Board reads as a nameless contest, and saving one would
+  // overwrite it. Stop and name the hidden fields instead.
+  const hidden = hiddenFields(recs);
+  if (hidden.length) {
+    $('tabs').hidden = true;
+    return fail(`Your CRM profile can't see these Scoreboard Targets fields: ${hidden.join(', ')}. Ask a CRM administrator to give your profile Read and Write access to every field in the Scoreboard Targets module, then reload. Nothing has been changed.`);
+  }
   state.settings = recs.map(parseRecord);
   state.boards = boardsByGroup(state.settings).boards;
   state.contests = state.settings.filter(s => s.type === 'contest').sort((a, b) => (b.start || '').localeCompare(a.start || ''));

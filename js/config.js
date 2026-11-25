@@ -32,5 +32,8 @@ export const CONFIG = {
     [60, 'Senior Sales Executive'],
   ],
   // Who gets the admin tools (View rep picker, Scoreboard Admin page, full board), by CRM profile or role name.
+  // Rep override for Attended points / month. Turn on only once the Reps subform has the field
+  // Override_Attended_Points_Month (Number); until then the CRM would reject every save that sends it.
+  pointsOverride: false,
   repPicker: { profiles: ['Administrator', 'Managers of Delivery'], roles: ['Delivery Manager'] },
 };

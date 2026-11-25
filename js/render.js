@@ -221,18 +221,32 @@ function renderLeaderboard(all, P) {
     const n = el('td', 'name l', r.name); n.append(el('small', null, x.div)); tr.append(n);
     const lv = el('td', 'l'); lv.append(el('span', 'lvl', r.level || '—')); tr.append(lv);
     const sc = el('td'); const sw = el('div', 'score'); sw.append(bar(x.score / 150, 100 / 150), el('b', null, fmt(x.score))); sc.append(sw); tr.append(sc);
-    const pt = el('td'); pt.append(document.createTextNode(fmt1(pts.actual)));
-    if ((P === 'month' || P === 'lastmonth') && x.ln) pt.append(el('span', 'frac', ' / ' + fmt1(x.ln))); tr.append(pt);
-    const v = k => x.rows.find(q => q.key === k).actual;
-    tr.append(el('td', null, fmt1(v('schedPoints'))), el('td', null, fmt(v('scheduled'))), el('td', null, fmt(v('attended'))), el('td', null, fmt(v('firstEnc'))),
-      el('td', null, fmt(v('calls'))), el('td', null, fmt1((r['talk_' + SFX(P)] || 0) / 3600) + 'h'),
-      el('td', null, fmt(v('senior'))), el('td', null, fmt(v('referrals'))));
+    const pt = kpiCell(x, 'points', P, fmt1);
+    if ((P === 'month' || P === 'lastmonth') && x.ptsTarget && !pt.classList.contains('ovr')) pt.append(el('span', 'frac', ' / ' + fmt1(x.ptsTarget))); tr.append(pt);
+    tr.append(kpiCell(x, 'schedPoints', P, fmt1), kpiCell(x, 'scheduled', P, fmt), kpiCell(x, 'attended', P, fmt), kpiCell(x, 'firstEnc', P, fmt),
+      kpiCell(x, 'calls', P, fmt), el('td', null, fmt1((r['talk_' + SFX(P)] || 0) / 3600) + 'h'),
+      kpiCell(x, 'senior', P, fmt), kpiCell(x, 'referrals', P, fmt));
     const toggle = () => { state.open = state.open === r.id ? null : r.id; render(); };
     tr.onclick = toggle; tr.onkeydown = e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(); } };
     tb.append(tr);
     if (state.open === r.id) { const d = el('tr', 'detail'); const td = el('td'); td.colSpan = 13; td.append(scorecard(x, P)); d.append(td); tb.append(d); }
   });
   if (!list.length) { const tr = el('tr'); const td = el('td', 'l', all.length ? 'No reps match these filters.' : 'No active reps in this division yet.'); td.colSpan = 13; tr.append(td); tb.append(tr); }
+}
+
+// A leaderboard KPI cell. When the rep has an admin override for this KPI the cell is marked, the
+// tooltip says what was set, and This month / Last month show the overridden monthly target.
+const OVR_LABEL = { points: 'Attended points', schedPoints: 'Scheduled points', scheduled: 'Scheduled appointments', attended: 'Attended appointments',
+  firstEnc: 'First encounters', calls: 'Calls', senior: 'Senior contacts', referrals: 'Referrals' };
+function kpiCell(x, key, P, f) {
+  const td = el('td', null, f(x.rows.find(q => q.key === key).actual));
+  const o = x.r.overrideInfo, v = o?.targets?.[key];
+  if (v === null || v === undefined) return td;
+  const monthly = key === 'calls' ? v * (C.workingDays?.monthTotal || 0) : v;
+  td.classList.add('ovr');
+  td.title = `Override: ${OVR_LABEL[key]} ${fmt1(v)}${key === 'calls' ? ' a day' : ' a month'}${o.reason ? ` (${o.reason})` : ''}`;
+  if (P === 'month' || P === 'lastmonth') td.append(el('span', 'frac', ' / ' + (key === 'calls' ? fmt(monthly) : fmt1(monthly))));
+  return td;
 }
 
 function renderRace(list) {
@@ -277,7 +291,7 @@ function renderHow() {
   const weights = g ? `(${weightLine(g)})` : `(${Object.keys(GROUPS).map(x => `${x}: ${weightLine(x)}`).join('; ')})`;
   [
     `Activity Score: for each KPI, actual ÷ target ${weights}. KPIs with a weight of 0 are shown but not scored. 100 = on pace. Targets scale with working days so far.`,
-    `Attended points target = promotion level (e.g. Avg 24 = 24 points a month). On the leaderboard, This month shows that full monthly number all month; the Activity Score still measures it against pace. Levels come from Zoho and never go down; promotion uses the average of the last 3 completed months. Promotion points count Attended, Reschedule-ABD and Cancelled-ISS meetings by meeting date. New hires (NH) have a points target of 8; their next level is Sales Development Representative at 8. Plain BDR level has no points target, so points are left out of their score. Scheduled points = the points value of every meeting booked, on the day it was booked, except those now Cancelled; its target is the same as the Attended points target unless a manager sets one.`,
+    `Attended points target = promotion level (e.g. Avg 24 = 24 points a month). On the leaderboard, This month shows that full monthly number all month; the Activity Score still measures it against pace. Levels come from Zoho and never go down; promotion uses the average of the last 3 completed months. Promotion points count Attended, Reschedule-ABD and Cancelled-ISS meetings by meeting date. New hires (NH) have a points target of 8; their next level is Sales Development Representative at 8. Plain BDR level has no points target, so points are left out of their score. Scheduled points = the points value of every meeting booked, on the day it was booked, except those now Cancelled; its target is the same as the Attended points target unless a manager sets one. A manager can also give one rep their own Attended points target (a rep override); promotion still uses the level.`,
     'Attended appointments = Attended, Reschedule-ABD or Cancelled-ISS, on the meeting date. Scheduled appointments = every meeting booked, on the day it was created, except those now Cancelled. First encounters and Senior contacts follow the same rule.',
     'Objective Score (in each scorecard) = share of working days this month the rep hit the daily calls and scheduled targets.',
     "Senior contacts = meetings booked (on the day booked) with a Director, Vice President or Chief-level person, from the appointment's Seniority Level. Referrals = calls logged as Suggested Colleague (conversation or admin); Booked Colleague is not a referral.",

@@ -9,6 +9,9 @@ export const LEVELS = ['NH', 'Hit 8', 'Hit 16', 'Avg 16', 'Avg 20', 'Avg 24', 'A
 // Reps subform as John built it (2026-11-02): one row per rep, Contest_Side (labelled "Contest Team") for head-to-head contests.
 export const TEAMS = ['Team A', 'Team B', 'Team C', 'Team D', 'Team E', 'Team F'];
 const REPS = 'Reps_Participants', REP = 'Rep_Participant', TEAM = 'Contest_Side', OVR = 'Override_';
+// Attended points can be overridden per rep, but not per level: the level number is the points target.
+export const POINTS_OVR = 'Override_Attended_Points_Month';
+const ovrRow = r => { const t = row(r, OVR), p = num(r[POINTS_OVR]); if (p !== null) t.points = p; return t; };
 const teamOf = v => (v && v !== '-None-' ? v : '');
 
 export const GROUPS = { SDR: 'P4P Division', BDR: 'BDR Division', Trainee: 'Training' };
@@ -56,7 +59,7 @@ export function parseRecord(rec) {
     cap: (num(rec.Score_Cap_Pct) ?? 150) / 100, confirmed: rec.Targets_Confirmed === true, modified: rec.Modified_Time || '',
     levels: Object.fromEntries((rec.Level_Targets || []).filter(r => r.Level).map(r => [r.Level, row(r)])),
     // One Reps subform: a row with a target filled is an override; on a picked or team contest every row is an entrant.
-    overrides: Object.fromEntries(reps.filter(r => Object.values(row(r, OVR)).some(v => v !== null)).map(r => [idOf(r[REP]), { targets: row(r, OVR), reason: r.Reason || '' }])),
+    overrides: Object.fromEntries(reps.filter(r => Object.values(ovrRow(r)).some(v => v !== null)).map(r => [idOf(r[REP]), { targets: ovrRow(r), reason: r.Reason || '' }])),
     participants: hasEntrants ? reps.map(r => ({ id: idOf(r[REP]), team: teamOf(r[TEAM]) })) : [],
     // Subform row ids, so a save updates rows in place and deletes removed ones instead of adding copies.
     rowIds: {
@@ -68,9 +71,10 @@ export function parseRecord(rec) {
 
 // One Reps row per rep: entrants first (with their team), then override-only reps. Overrides for reps
 // who aren't entrants in a picked or team contest are dropped, since they aren't in it.
-function repRows(s) {
+function repRows(s, pointsField) {
   const ov = s.overrides || {}, out = [];
-  const add = (id, team) => out.push([id, { [REP]: { id }, [TEAM]: team || null, ...rowOut(ov[id]?.targets, OVR), Reason: ov[id]?.reason || '' }]);
+  const pts = id => (pointsField ? { [POINTS_OVR]: ov[id]?.targets?.points ?? null } : {});
+  const add = (id, team) => out.push([id, { [REP]: { id }, [TEAM]: team || null, ...rowOut(ov[id]?.targets, OVR), ...pts(id), Reason: ov[id]?.reason || '' }]);
   if (entrantsListed(s)) for (const p of s.participants || []) add(p.id, p.team);
   else for (const id of Object.keys(ov)) add(id, '');
   return out;
@@ -83,7 +87,8 @@ function subform(rows, ids = {}) {
     ...Object.entries(ids).filter(([key]) => !keep.has(key)).map(([, id]) => ({ id, _delete: null }))];
 }
 
-export function toRecord(s) {
+// pointsField: send the Attended points override (only once that subform field exists; CONFIG.pointsOverride).
+export function toRecord(s, { pointsField = false } = {}) {
   const ids = s.rowIds || {};
   const out = {
     Name: s.name, Record_Type: TYPES[s.type], Group: s.group,
@@ -94,7 +99,7 @@ export function toRecord(s) {
     ...Object.fromEntries(Object.entries(WEIGHT_FIELDS).map(([k, f]) => [f, s.weights?.[k] ?? 0])),
     Score_Cap_Pct: Math.round(s.cap * 100), Targets_Confirmed: !!s.confirmed,
     Level_Targets: subform(Object.entries(s.levels || {}).map(([Level, t]) => [Level, { Level, ...rowOut(t) }]), ids.levels),
-    [REPS]: subform(repRows(s), ids.reps),
+    [REPS]: subform(repRows(s, pointsField), ids.reps),
   };
   if (s.id) out.id = s.id;
   return out;
@@ -151,6 +156,8 @@ export function resolveTargets(rep, setting, cfg, monthTotal) {
     if (v === null) { if (k in base) out[k] = base[k]; continue; }
     out[k] = k === 'calls' ? v : v / monthTotal;
   }
+  // Attended points: only a rep override changes it; otherwise scoring uses the level number.
+  if (ovr.points !== null && ovr.points !== undefined && monthTotal) out.points = ovr.points / monthTotal;
   return out;
 }
 
@@ -268,3 +275,11 @@ export function contestDefs(contests) {
 export const RECORD_FIELDS = ['Name', 'Record_Type', 'Group', 'Start_Date', 'End_Date', 'Goal', 'Prize', 'Measured_On', 'Scoring_Method', 'Format',
   'Entrants', 'Team_Score', 'Score_Cap_Pct', 'Targets_Confirmed', 'Modified_Time', ...Object.values(FIXED_FIELDS), ...Object.values(WEIGHT_FIELDS),
   'Level_Targets', REPS];
+
+// Fields the CRM left out of every record. Zoho omits a field the user's profile can't see (an empty
+// field still comes back as null), so a gap here means field-level permissions, not missing data.
+// Subforms are skipped: the list call leaves them out anyway.
+export function hiddenFields(records) {
+  if (!records.length) return [];
+  return RECORD_FIELDS.filter(f => f !== 'Level_Targets' && f !== REPS && !records.some(r => f in r));
+}

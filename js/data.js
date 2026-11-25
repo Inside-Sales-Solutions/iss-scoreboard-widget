@@ -111,7 +111,7 @@ export function blankRep(u, cfg, monthTotal, boards = {}) {
   const id = String(u.id), group = groupOf(u.Team), board = boards[group] || null;
   const r = { id, name: u.full_name || `${u.first_name || ''} ${u.last_name || ''}`.trim(), team: u.Team || '', level, group,
     targets: resolveTargets({ id, level }, board, cfg, monthTotal), weights: board?.weights ?? cfg.weights, cap: board?.cap ?? cfg.cap,
-    confirmed: board?.confirmed ?? false, override: !!board?.overrides?.[id], sch_days: {}, call_days: {}, days_calls_hit: 0, days_sched_hit: 0 };
+    confirmed: board?.confirmed ?? false, override: !!board?.overrides?.[id], overrideInfo: board?.overrides?.[id] || null, sch_days: {}, call_days: {}, days_calls_hit: 0, days_sched_hit: 0 };
   for (const c of COLS) for (const s of SUFFIXES) r[`${c}_${s}`] = 0;
   return r;
 }

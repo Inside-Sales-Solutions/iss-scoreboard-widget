@@ -68,6 +68,9 @@ table.lb{width:100%;border-collapse:collapse;min-width:1040px;font-variant-numer
 .bar i{position:absolute;left:0;top:0;bottom:0;border-radius:4px;background:var(--accent)}
 .bar u{position:absolute;top:-3px;bottom:-3px;width:2px;background:var(--ink);opacity:.55}
 .frac{color:var(--muted)}
+/* A rep override set on the Scoreboard Admin page. */
+td.ovr .frac{color:var(--accent);font-weight:600}
+td.ovr::after{content:'*';color:var(--accent);font-weight:700;margin-left:1px}
 .ok{color:var(--ok)}.warn{color:var(--warn)}.bad{color:var(--bad)}
 tr.detail td{background:var(--bg);padding:16px;white-space:normal;font-family:var(--f-body);text-align:left}
 .card{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px}
