@@ -3,9 +3,11 @@
 export function canPickReps(user, cfg) {
   if (!user) return false;
   const rule = cfg.repPicker || {};
-  const profile = user.profile?.name || user.profile || '';
-  const role = user.role?.name || user.role || '';
-  return (rule.profiles || []).includes(profile) || (rule.roles || []).includes(role);
+  const norm = v => String(v || '').trim().toLowerCase();
+  const profile = norm(user.profile?.name || user.profile);
+  const role = norm(user.role?.name || user.role);
+  const has = (list, v) => !!v && (list || []).some(x => norm(x) === v);
+  return has(rule.profiles, profile) || has(rule.roles, role);
 }
 
 // The team a viewer is limited to (Aidan, 2026-11-02: reps only see their own division).

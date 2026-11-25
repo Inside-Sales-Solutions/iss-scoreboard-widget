@@ -31,6 +31,6 @@ export const CONFIG = {
     [56, 'Sales Executive'],
     [60, 'Senior Sales Executive'],
   ],
-  // Who sees the "View rep" picker, by CRM profile or role name. Add role names here later.
-  repPicker: { profiles: ['Administrator'], roles: [] },
+  // Who gets the admin tools (View rep picker, Scoreboard Admin page, full board), by CRM profile or role name.
+  repPicker: { profiles: ['Administrator', 'Managers of Delivery'], roles: ['Delivery Manager'] },
 };

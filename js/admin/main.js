@@ -1,4 +1,4 @@
-// Scoreboard Admin entry: initialise the SDK, check the Administrator profile, load the
+// Scoreboard Admin entry: initialise the SDK, check the admin profiles (CONFIG.repPicker), load the
 // Scoreboard Targets records and the reps, then show the chosen tab.
 
 import { CONFIG } from '../config.js';
@@ -57,7 +57,7 @@ async function start() {
   $('back').href = pageHref('index.html');
   $('help-link').href = pageHref('help.html') + '#admin';
   const user = await currentUser();
-  if (!canPickReps(user, CONFIG)) return fail('You need the Administrator profile to change scoreboard settings.');
+  if (!canPickReps(user, CONFIG)) return fail('You need the Administrator or Managers of Delivery profile, or the Delivery Manager role, to change scoreboard settings.');
   for (const b of document.querySelectorAll('#tabs button')) b.onclick = () => {
     state.tab = b.dataset.tab;
     try { history.replaceState(null, '', '#' + state.tab); } catch { /* sandboxed frame */ }
